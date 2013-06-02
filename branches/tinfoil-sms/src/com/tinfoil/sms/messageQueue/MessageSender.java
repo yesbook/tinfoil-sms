@@ -19,6 +19,7 @@ package com.tinfoil.sms.messageQueue;
 
 import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.database.DBAccessor;
+import com.tinfoil.sms.utility.MessageService;
 import com.tinfoil.sms.utility.SMSUtility;
 
 import android.content.Context;
@@ -30,7 +31,7 @@ public class MessageSender implements Runnable{
 	private Context c;
 	private boolean empty = true;
 	private Thread thread;
-	private DBAccessor sender;
+	//private DBAccessor sender;
 	private boolean signal = false;
 	
 	/**
@@ -39,7 +40,7 @@ public class MessageSender implements Runnable{
 	 */
 	public void startThread(Context c) {
 		this.c = c;
-		this.sender = new DBAccessor(c);
+		//this.sender = new DBAccessor(c);
 		thread = new Thread(this);
 		thread.start();
 	}
@@ -67,7 +68,7 @@ public class MessageSender implements Runnable{
 			 */
 			while(empty && mes == null)
 			{
-				mes = sender.getFirstInQueue();
+				mes = MessageService.dba.getFirstInQueue();
 				if(mes != null)
 				{
 					break;
@@ -128,7 +129,7 @@ public class MessageSender implements Runnable{
 			 * Send the message 
 			 */
 			if(mes != null) {
-				SMSUtility.sendMessage(this.sender, c, mes);
+				SMSUtility.sendMessage(c, mes);
 			}
 		}		
 	}

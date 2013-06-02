@@ -273,7 +273,7 @@ public class ConversationView extends Activity implements Runnable {
     @Override
     protected void onPause()
     {
-    	 MessageService.dba.close();
+    	 //MessageService.dba.close();
     	 super.onPause();
     }
     

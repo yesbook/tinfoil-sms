@@ -231,17 +231,17 @@ public abstract class SMSUtility {
      * 
      * @return boolean whether the message sent or not
      */
-    public static boolean sendMessage(DBAccessor dba, final Context context, Entry message) {
+    public static boolean sendMessage(final Context context, Entry message) {
     	   	
         try
         {
-            if (dba.isTrustedContact(message.getNumber()) &&
+            if (MessageService.dba.isTrustedContact(message.getNumber()) &&
                     ConversationView.sharedPrefs.getBoolean("enable", true) &&
                     !message.isExchange())
             {
             	Encryption CrpytoEngine = new Encryption();
             	
-            	Number number = dba.getNumber(format(message.getNumber()));
+            	Number number = MessageService.dba.getNumber(format(message.getNumber()));
             	
             	Log.v("Before Encryption", message.getMessage());
                 //Create the an encrypted message
@@ -262,7 +262,7 @@ public abstract class SMSUtility {
                 if (ConversationView.sharedPrefs.getBoolean("showEncrypt", true))
                 {
                     sendToSelf(context, message.getNumber(), encrypted, ConversationView.SENT);
-                    dba.addNewMessage(new Message
+                    MessageService.dba.addNewMessage(new Message
                             (encrypted, true, true), message.getNumber(), false);
                 }
 
@@ -281,9 +281,9 @@ public abstract class SMSUtility {
                 sendToSelf(context, message.getNumber(), message.getMessage(), ConversationView.SENT);
 
                 //TODO change to update the time the message was sent.
-                /*if(dba.inDatabase(message.getNumber()))
+                /*if(MessageService.dba.inDatabase(message.getNumber()))
                 {
-                	dba.addNewMessage(new Message(message.getMessage(), true, true), message.getNumber(), true);
+                	MessageService.dba.addNewMessage(new Message(message.getMessage(), true, true), message.getNumber(), true);
                 }*/
 
                 Toast.makeText(context, "Message sent", Toast.LENGTH_SHORT).show();
