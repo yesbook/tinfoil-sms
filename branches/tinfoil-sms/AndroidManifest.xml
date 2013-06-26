@@ -17,18 +17,39 @@
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <application
+        android:name="TinfoilSMS"
         android:allowBackup="false"
         android:allowClearUserData="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name" >
         <activity
+            android:name=".sms.ConversationView"
+            android:configChanges="orientation"
+            android:label="@string/app_name" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".sms.SendMessageActivity"
             android:label="@string/send_message"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            
+            <intent-filter>
+	            <action android:name="android.intent.action.SENDTO" />
+	            <category android:name="android.intent.category.DEFAULT" />
+	            <data android:scheme="sms" />
+	            <data android:scheme="smsto" />
+        	</intent-filter>
+        </activity>
         <activity
             android:name=".settings.AddContact"
             android:label="@string/add_contact_activity" />
@@ -57,16 +78,7 @@
             android:name=".settings.RemoveContactsActivity"
             android:configChanges="orientation"
             android:label="@string/delete_contacts" />
-        <activity
-            android:name=".sms.ConversationView"
-            android:configChanges="orientation"
-            android:label="@string/app_name" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        
 
         <receiver android:name=".utility.MessageReceiver" >
             <intent-filter android:priority="1000" >
