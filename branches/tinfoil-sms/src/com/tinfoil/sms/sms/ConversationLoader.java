@@ -20,11 +20,9 @@ package com.tinfoil.sms.sms;
 import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.tinfoil.sms.crypto.KeyGenerator;
 import com.tinfoil.sms.dataStructures.User;
-import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.utility.MessageService;
 import com.tinfoil.sms.utility.SMSUtility;
 
@@ -35,7 +33,7 @@ public class ConversationLoader implements Runnable {
 	
     private boolean loopRunner = true;
     private boolean start = true;
-    private Context context;
+    //private Context context;
 	private Thread thread;
     private boolean update;
     private Handler handler;
@@ -49,7 +47,7 @@ public class ConversationLoader implements Runnable {
      */
     public ConversationLoader(Context context, boolean update, Handler handler)
     {
-    	this.context = context;
+    	//this.context = context;
     	this.update = update;
     	this.handler = handler;
     	thread = new Thread(this);
@@ -59,10 +57,10 @@ public class ConversationLoader implements Runnable {
     public void run() {
 		while (loopRunner)
 		{
-			MessageService.dba = new DBAccessor(context);
-			DBAccessor loader = new DBAccessor(context);
+			
+			//DBAccessor loader = new DBAccessor(context);
 
-	        SMSUtility.user = loader.getUserRow();
+	        SMSUtility.user = MessageService.dba.getUserRow();
 	         
 	        if(SMSUtility.user == null)
 	        {
@@ -73,7 +71,7 @@ public class ConversationLoader implements Runnable {
 		        
 		        SMSUtility.user = new User(keyGen.generatePubKey(), keyGen.generatePriKey());
 		        //Set the user's 
-		        loader.setUser(SMSUtility.user);
+		        MessageService.dba.setUser(SMSUtility.user);
 	        }
 	        
 	        Log.v("public key", new String(SMSUtility.user.getPublicKey()));
@@ -82,7 +80,7 @@ public class ConversationLoader implements Runnable {
 	        Log.v("private key", new String(SMSUtility.user.getPrivateKey()));
 	        //Toast.makeText(context, "Private Key " + new String(SMSUtility.user.getPrivateKey()), Toast.LENGTH_LONG).show();			
 			
-			ConversationView.msgList = loader.getConversations();
+			ConversationView.msgList = MessageService.dba.getConversations();
 			if(!update) {
 				handler.sendEmptyMessage(ConversationView.LOAD);
 			}

@@ -44,6 +44,7 @@ import android.widget.ListView;
 import com.tinfoil.sms.R;
 import com.tinfoil.sms.adapter.ConversationAdapter;
 import com.tinfoil.sms.adapter.DefaultListAdapter;
+import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.messageQueue.MessageSender;
 import com.tinfoil.sms.messageQueue.SignalListener;
 import com.tinfoil.sms.settings.AddContact;
@@ -102,8 +103,8 @@ public class ConversationView extends Activity {
         ((TelephonyManager) this.getSystemService(TELEPHONY_SERVICE)).listen(this.pSL, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
         MessageService.mNotificationManager = (NotificationManager) this.getSystemService(NOTIFICATION_SERVICE);
 
-        //TODO move setup to a thread to focus on a faster UI interaction
-                
+        MessageService.dba = new DBAccessor(this);
+        
         messageSender.startThread(getApplicationContext());
 
         if (this.getIntent().hasExtra(MessageService.multipleNotificationIntent))

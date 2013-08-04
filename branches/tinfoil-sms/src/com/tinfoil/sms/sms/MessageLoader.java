@@ -25,14 +25,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
-import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.utility.MessageService;
 
 public class MessageLoader implements Runnable{
 	
     private boolean loopRunner = true;
     private boolean start = true;
-    private Context context;
+    //private Context context;
 	private Thread thread;
     private boolean update;
     private Handler handler;
@@ -46,7 +45,7 @@ public class MessageLoader implements Runnable{
      */
     public MessageLoader(Context context, boolean update, Handler handler)
     {
-    	this.context = context;
+    	//this.context = context;
     	this.update = update;
     	this.handler = handler;
     	thread = new Thread(this);
@@ -58,14 +57,15 @@ public class MessageLoader implements Runnable{
 		{
 			if(!update)
 			{
-				DBAccessor loader = new DBAccessor(context);
-		        final boolean isTrusted = loader.isTrustedContact(ConversationView.selectedNumber);
+				
+				//DBAccessor loader = new DBAccessor(context);
+		        final boolean isTrusted = MessageService.dba.isTrustedContact(ConversationView.selectedNumber);
 		        
-				List<String[]> msgList2 = loader.getSMSList(ConversationView.selectedNumber);
-				final int unreadCount = loader.getUnreadMessageCount(ConversationView.selectedNumber);
+				List<String[]> msgList2 = MessageService.dba.getSMSList(ConversationView.selectedNumber);
+				final int unreadCount = MessageService.dba.getUnreadMessageCount(ConversationView.selectedNumber);
 
 		        //Retrieve the name of the contact from the database
-		        String contact_name = loader.getRow(ConversationView.selectedNumber).getName();
+		        String contact_name = MessageService.dba.getRow(ConversationView.selectedNumber).getName();
 				
 		        Message msg = new Message();
 	        	Bundle b = new Bundle();

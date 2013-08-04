@@ -17,20 +17,20 @@
 
 package com.tinfoil.sms.messageQueue;
 
-import com.tinfoil.sms.dataStructures.Entry;
-import com.tinfoil.sms.database.DBAccessor;
-import com.tinfoil.sms.utility.SMSUtility;
-
 import android.content.Context;
 import android.os.Looper;
 import android.util.Log;
+
+import com.tinfoil.sms.dataStructures.Entry;
+import com.tinfoil.sms.utility.MessageService;
+import com.tinfoil.sms.utility.SMSUtility;
 
 public class MessageSender implements Runnable{
 
 	private Context c;
 	private boolean empty = true;
 	private Thread thread;
-	private DBAccessor sender;
+	//private DBAccessor sender;
 	private boolean signal = false;
 	
 	/**
