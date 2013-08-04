@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,16 @@ import java.util.List;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.tinfoil.sms.R;
+import com.tinfoil.sms.dataStructures.Message;
 
 public class MessageAdapter extends ArrayAdapter<String[]> {
 
@@ -37,6 +40,7 @@ public class MessageAdapter extends ArrayAdapter<String[]> {
         TextView c_name;
         TextView c_message;
         TextView c_date;
+        ImageView indicator;
     }
 	
     private final Context context;
@@ -85,6 +89,7 @@ public class MessageAdapter extends ArrayAdapter<String[]> {
             holder.c_name = (TextView) row.findViewById(R.id.c_name);
             holder.c_message = (TextView) row.findViewById(R.id.c_message);
             holder.c_date = (TextView) row.findViewById(R.id.c_date);
+            holder.indicator = (ImageView)row.findViewById(R.id.message_icon);
 
             row.setTag(holder);
         }
@@ -107,6 +112,44 @@ public class MessageAdapter extends ArrayAdapter<String[]> {
         {
             holder.c_name.setTypeface(null, Typeface.NORMAL);
             holder.c_message.setTypeface(null, Typeface.NORMAL);
+        }
+        
+        int sentValue = Integer.valueOf(contact[4]);
+        
+        Log.v("type", "" + sentValue);
+
+        // Sent or received encrypted messages
+        if (sentValue == Message.SENT_ENCRYPTED || sentValue == Message.RECEIVED_ENCRYPTED)
+        {
+        	holder.indicator.setImageResource(R.drawable.encrypted);
+        	holder.indicator.setVisibility(ImageView.VISIBLE);
+        }
+        // Sent or received with obfuscation
+        else if (sentValue == Message.SENT_ENC_OBF || sentValue == Message.RECEIVED_ENC_OBF)
+        {
+        	
+        }
+        // Received but failed to decrypt
+        else if (sentValue == Message.RECEIVED_ENCRYPT_FAIL)
+        {
+        	holder.indicator.setImageResource(R.drawable.decryption_failed);
+        	holder.indicator.setVisibility(ImageView.VISIBLE);
+        }
+        // Received but de-obfuscation failed
+        else if (sentValue == Message.RECEIVED_OBF_FAIL)
+        {
+        	
+        }
+        // Received obfuscated message but decryption failed
+        else if (sentValue == Message.RECEIVED_ENC_OBF_FAIL)
+        {
+        	
+        }
+        // Default message
+        else if (sentValue == Message.SENT_DEFAULT || sentValue == Message.RECEIVED_DEFAULT)
+        {
+        	holder.indicator.setImageResource(R.drawable.not_encrypted);
+        	holder.indicator.setVisibility(ImageView.VISIBLE);
         }
 
         return row;

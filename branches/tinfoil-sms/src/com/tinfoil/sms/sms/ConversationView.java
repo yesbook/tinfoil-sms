@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -41,31 +40,22 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
-import android.widget.Toast;
 
 import com.tinfoil.sms.R;
 import com.tinfoil.sms.adapter.ConversationAdapter;
 import com.tinfoil.sms.adapter.DefaultListAdapter;
-import com.tinfoil.sms.crypto.KeyGenerator;
-import com.tinfoil.sms.dataStructures.User;
-import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.messageQueue.MessageSender;
 import com.tinfoil.sms.messageQueue.SignalListener;
+import com.tinfoil.sms.settings.AddContact;
+import com.tinfoil.sms.settings.ImportContacts;
 import com.tinfoil.sms.settings.QuickPrefsActivity;
 import com.tinfoil.sms.utility.MessageReceiver;
 import com.tinfoil.sms.utility.MessageService;
-import com.tinfoil.sms.utility.SMSUtility;
 
 /**
- * TODO add import, export (and any other key options) to the setting menu, key exchange
- * TODO attempt to move all DB queries to queues
- * TODO change wrap_content to '0dp'
- * TODO list is updated check if the list is now empty and should display the alt list
- * see https://developer.android.com/training/basics/firstapp/building-ui.html
  * <ul>
  * <li>TODO add the proper version number and name to the manifest</li>
- * <li>TODO adjust the list view to default (if empty) to suggest importing
- * contact or composing a message or adding a contact, it can really be either.</li>
+ * <li>TODO change wrap_content to '0dp'</li>
  * </ul>
  * This activity shows all of the conversations the user has with contacts. The
  * list Will be updated every time a message is received. Upon clicking any of
@@ -75,7 +65,7 @@ import com.tinfoil.sms.utility.SMSUtility;
  * user can also select 'settings' which will take them to the main settings
  * page.
  */
-public class ConversationView extends Activity implements Runnable {
+public class ConversationView extends Activity {
 
 	//public static DBAccessor dba;
     public static final String INBOX = "content://sms/inbox";
@@ -84,8 +74,9 @@ public class ConversationView extends Activity implements Runnable {
     public static String selectedNumber;
     public static final String selectedNumberIntent = "com.tinfoil.sms.Selected";
     private static ConversationAdapter conversations;
-    private static List<String[]> msgList;
+    public static List<String[]> msgList;
     private static ListView list;
+    private static DefaultListAdapter ap;
     private final MessageReceiver boot = new MessageReceiver();
     private final SignalListener pSL = new SignalListener();
     public static boolean messageViewActive = false;
@@ -96,8 +87,9 @@ public class ConversationView extends Activity implements Runnable {
     private static boolean update = false;
     public static final int LOAD = 0;
     public static final int UPDATE = 1;
-    private static Thread thread;
     private static ListView emptyList; 
+    
+    private static ConversationLoader runThread;
     
     public static final int ADD_CONTACT = 0;
     public static final int IMPORT_CONTACT = 1;
@@ -107,37 +99,11 @@ public class ConversationView extends Activity implements Runnable {
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //TODO move setup to a thread to focus on a faster UI interaction
         ((TelephonyManager) this.getSystemService(TELEPHONY_SERVICE)).listen(this.pSL, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
         MessageService.mNotificationManager = (NotificationManager) this.getSystemService(NOTIFICATION_SERVICE);
 
-        //Cancel all notifications from tinfoil-sms upon starting the main activity
-        MessageService.mNotificationManager.cancelAll();
-
-        MessageService.dba = new DBAccessor(this);
-
-        SMSUtility.user = MessageService.dba.getUserRow();
-        
-        // Commented out for now since there is a library reference problem.
-         
-        if(SMSUtility.user == null)
-        {
-        	Toast.makeText(this, "New key pair is generating...", Toast.LENGTH_SHORT).show();
-        	Log.v("First Launch", "keys are generating...");
-        	//Create the keyGenerator
-	        KeyGenerator keyGen = new KeyGenerator();
-	        
-	        SMSUtility.user = new User(keyGen.generatePubKey(), keyGen.generatePriKey());
-	        //Set the user's 
-	        MessageService.dba.setUser(SMSUtility.user);
-        }
-        
-        Log.v("public key", new String(SMSUtility.user.getPublicKey()));
-        Toast.makeText(this, "Public Key " + new String(SMSUtility.user.getPublicKey()), Toast.LENGTH_LONG);
-        
-        Log.v("private key", new String(SMSUtility.user.getPrivateKey()));
-        Toast.makeText(this, "Private Key " + new String(SMSUtility.user.getPrivateKey()), Toast.LENGTH_LONG);
-        
+        //TODO move setup to a thread to focus on a faster UI interaction
+                
         messageSender.startThread(getApplicationContext());
 
         if (this.getIntent().hasExtra(MessageService.multipleNotificationIntent))
@@ -182,18 +148,14 @@ public class ConversationView extends Activity implements Runnable {
         this.dialog = ProgressDialog.show(this, "Loading Messages",
                 "Please wait...", true, true, new OnCancelListener() {
 
-					public void onCancel(DialogInterface dialog) {
-										
-					}
+        	public void onCancel(DialogInterface dialog) {
+									
+			}
         });
         
         update = false;
-        thread = new Thread(this);
-        thread.start();
-        
-        //msgList = MessageService.dba.getConversations();
-        
-
+        runThread = new ConversationLoader(this, update, handler);
+       
         //View header = (View)getLayoutInflater().inflate(R.layout.contact_message, null);
         //list.addHeaderView(header);
         
@@ -217,17 +179,22 @@ public class ConversationView extends Activity implements Runnable {
 				switch (position)
 				{
 					case ADD_CONTACT:
-						Toast.makeText(ConversationView.this, "add contact", Toast.LENGTH_LONG).show();
-						//TODO start add contacts
+						//Launch add contacts
+						AddContact.addContact = true;
+		                AddContact.editTc = null;
+						ConversationView.this.startActivity(new Intent(
+		                		ConversationView.this.getBaseContext(), 
+		                		AddContact.class));
 					break;
 					case IMPORT_CONTACT:
-						Toast.makeText(ConversationView.this, "import contact", Toast.LENGTH_LONG).show();
-						//TODO start import contacts activity
+						//Launch import contacts
+						ConversationView.this.startActivity(new Intent(
+		                		ConversationView.this.getBaseContext(), 
+		                		ImportContacts.class));
 					break;
 				}
 			}
 		});
-
     }
 
     /**
@@ -238,20 +205,17 @@ public class ConversationView extends Activity implements Runnable {
      */
     public static void updateList(final Context context, final boolean messageViewUpdate)
     {
-    	//TODO remove
-        //Toast.makeText(context, String.valueOf(messageViewUpdate), Toast.LENGTH_SHORT).show();
+
         if (MessageReceiver.myActivityStarted)
         {
-        	//update = true;
-        	//thread.start();
-        	//
-        	//thread.start();
-        	
-        	//TODO do this in a thread
-            msgList = MessageService.dba.getConversations();
-            conversations.clear();
-            conversations.addData(msgList);
-
+            
+        	if(conversations != null)
+            {
+            	runThread.setUpdate(true);
+            }
+            
+            runThread.setStart(false);
+            
             if (messageViewUpdate)
             {
                 MessageView.updateList();
@@ -262,7 +226,8 @@ public class ConversationView extends Activity implements Runnable {
     @Override
     protected void onResume()
     {
-    	if(conversations != null)
+    	MessageService.mNotificationManager.cancel(MessageService.MULTI);
+    	if(conversations != null || ap != null)
     	{
     		updateList(this, false);
     	}
@@ -279,13 +244,14 @@ public class ConversationView extends Activity implements Runnable {
     
     @Override
     protected void onDestroy()
-    {	       
+    {
         this.stopService(new Intent(this, MessageService.class));
         
         conversations = null;
         //this.unbindService(null);
         MessageReceiver.myActivityStarted = false;
-
+        
+        runThread.setRunner(false);
         super.onDestroy();
     }
 
@@ -312,37 +278,27 @@ public class ConversationView extends Activity implements Runnable {
             default:
                 return super.onOptionsItemSelected(item);
         }
-
-    }
-
-	public void run() {
+    }   
 		
-		DBAccessor loader = new DBAccessor(this);
-		msgList = loader.getConversations();
-		if(!update) {
-			this.handler.sendEmptyMessage(LOAD);
-		}
-		else
-		{
-			this.handler.sendEmptyMessage(UPDATE);
-		}
-	}
-	
 	/**
 	 * The handler class for cleaning up after the loading thread as well as the
 	 * update thread.
 	 */
-	private final Handler handler = new Handler() {
+	private Handler handler = new Handler() {
         @Override
         public void handleMessage(final android.os.Message msg)
         {
         	if(msgList.isEmpty())
         	{
+        		/*
+        		 * The user has no contacts show the default list items to allow
+        		 * for quick import or addition of contacts.
+        		 */
         		List<String> emptyItems = new ArrayList<String>();
         		emptyItems.add("Add Contact");
         		emptyItems.add("Import Contact");
         		
-        		DefaultListAdapter ap = new DefaultListAdapter(ConversationView.this, R.layout.empty_list_item, emptyItems);
+        		ap = new DefaultListAdapter(ConversationView.this, R.layout.empty_list_item, emptyItems);
                 emptyList.setAdapter(ap);
         		emptyList.setVisibility(ListView.VISIBLE);
         		list.setVisibility(ListView.INVISIBLE);
@@ -350,15 +306,19 @@ public class ConversationView extends Activity implements Runnable {
         	}
         	else
         	{
+        		//The user has contacts step-up the list view for the conversations
         		emptyList.setVisibility(ListView.INVISIBLE);
         		list.setVisibility(ListView.VISIBLE);
+        		
 	        	switch (msg.what){
 	        	case LOAD:
+	        		//First time load, the adapter must be constructed
 	        		conversations = new ConversationAdapter(ConversationView.this, R.layout.listview_item_row, msgList);
 	        		list.setAdapter(conversations);
 	        		ConversationView.this.dialog.dismiss();
 		        	break;
 	        	case UPDATE:
+	        		//The list's data has changed and needs to be updated
 	        		conversations.clear();
 	                conversations.addData(msgList);
 	        		break;

@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,11 +38,11 @@ import android.widget.Toast;
 import com.tinfoil.sms.R;
 import com.tinfoil.sms.adapter.MessageBoxWatcher;
 import com.tinfoil.sms.dataStructures.Message;
+import com.tinfoil.sms.dataStructures.Number;
 import com.tinfoil.sms.dataStructures.TrustedContact;
 import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.utility.MessageService;
 import com.tinfoil.sms.utility.SMSUtility;
-import com.tinfoil.sms.dataStructures.Number;
 
 /**
  * SendMessageActivity is an activity that allows a user to create a new or
@@ -55,7 +55,6 @@ import com.tinfoil.sms.dataStructures.Number;
  */
 public class SendMessageActivity extends Activity {
     private static MessageBoxWatcher messageEvent;
-    //private Button sendSMS;
     private AutoCompleteTextView phoneBox;
     private EditText messageBox;
     private ArrayList<TrustedContact> tc;
@@ -75,7 +74,7 @@ public class SendMessageActivity extends Activity {
         this.newCont = new TrustedContact();
         
         //Do in thread.
-        this.tc = MessageService.dba.getAllRows();
+        this.tc = MessageService.dba.getAllRows(DBAccessor.ALL);
 
         //Since the number is being entered cant really set a limit on the size...
         //Defaults to a trusted contact just to be safe
@@ -189,14 +188,21 @@ public class SendMessageActivity extends Activity {
                  */
             	
             	//Add contact to the database
-            	MessageService.dba.addRow(new TrustedContact(new Number(number)));
-                
+            	if(!MessageService.dba.inDatabase(number))
+            	{
+            		MessageService.dba.addRow(new TrustedContact(new Number(number)));
+            	}
             	
-                //final boolean sent = SMSUtility.sendMessage(SendMessageActivity.this.getBaseContext(), SendMessageActivity.this.newCont.getNumber(0), text);
-
             	//Add the message to the database
-                MessageService.dba.addNewMessage(new Message(text, true, true), number, true);
-                
+            	if(MessageService.dba.isTrustedContact(number))
+            	{
+            		MessageService.dba.addNewMessage(new Message(text, true, Message.SENT_ENCRYPTED), number, true);
+            	}
+            	else
+            	{
+            		MessageService.dba.addNewMessage(new Message(text, true, Message.SENT_DEFAULT), number, true);
+            	}
+
                 //Add the message to the queue to send it
                 MessageService.dba.addMessageToQueue(number, text, false);         
                 

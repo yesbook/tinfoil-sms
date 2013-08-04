@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ import android.widget.ListView;
 
 import com.tinfoil.sms.R;
 import com.tinfoil.sms.dataStructures.TrustedContact;
+import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.utility.MessageService;
 
 /**
@@ -121,7 +122,7 @@ public class RemoveContactsActivity extends Activity implements Runnable {
     private void update()
     {
         String[] names;
-        this.tc = MessageService.dba.getAllRows();
+        this.tc = MessageService.dba.getAllRows(DBAccessor.ALL);
 
         if (this.tc != null)
         {

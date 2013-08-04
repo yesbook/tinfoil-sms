@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,7 +7,7 @@
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without evensetAllSelected the implied warranty of
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
@@ -36,7 +36,6 @@ public class ManageContactAdapter extends BaseExpandableListAdapter {
 	private static class TrustContactHolder
     {
         CheckedTextView name;
-        ImageView image;
     }
 
     private static class ContactHolder
@@ -74,21 +73,12 @@ public class ManageContactAdapter extends BaseExpandableListAdapter {
         View row = convertView;
         TrustContactHolder holder = null;
 
-        //if(row == null)
-        //{
         row = this.inflater.inflate(R.layout.trusted_contact_manage, parent, false);
         holder = new TrustContactHolder();
         holder.name = (CheckedTextView) row.findViewById(R.id.trust_name);
         //holder.indicator = (TextView) row.findViewById(R.id.trust_indicator);
-        holder.image = (ImageView) row.findViewById(R.id.contact_icon);
+        //holder.image = (ImageView) row.findViewById(R.id.contact_icon);
         
-
-        /*	row.setTag(holder);
-        }	
-        else
-        {
-            holder = (TrustContactHolder)row.getTag();
-        }*/
 
         holder.name.setText(this.contacts.get(groupPosition).getNumber(childPosition).getNumber());
 
@@ -96,14 +86,14 @@ public class ManageContactAdapter extends BaseExpandableListAdapter {
 
         //holder.indicator.setText(String.valueOf(this.contacts.get(groupPosition).getNumber(childPosition).isTrusted()));
         
-        if(this.contacts.get(groupPosition).getNumber(childPosition).isTrusted())
+        /*if(this.contacts.get(groupPosition).getNumber(childPosition).isTrusted())
         {
         	holder.image.setVisibility(ImageView.VISIBLE);
         }
         else
         {
         	holder.image.setVisibility(ImageView.INVISIBLE);
-        }
+        }*/
 
         return row;
     }
@@ -161,11 +151,13 @@ public class ManageContactAdapter extends BaseExpandableListAdapter {
         
         if(this.contacts.get(groupPosition).isTrusted())
         {
+        	holder.image.setImageResource(R.drawable.trusted_contact);
         	holder.image.setVisibility(ImageView.VISIBLE);
         }
         else
         {
-        	holder.image.setVisibility(ImageView.INVISIBLE);
+        	holder.image.setImageResource(R.drawable.add_contact);
+        	holder.image.setVisibility(ImageView.VISIBLE);
         }
         
         return row;

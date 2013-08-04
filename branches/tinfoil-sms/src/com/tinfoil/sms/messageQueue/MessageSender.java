@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@ package com.tinfoil.sms.messageQueue;
 
 import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.database.DBAccessor;
-import com.tinfoil.sms.utility.MessageService;
 import com.tinfoil.sms.utility.SMSUtility;
 
 import android.content.Context;
@@ -31,7 +30,7 @@ public class MessageSender implements Runnable{
 	private Context c;
 	private boolean empty = true;
 	private Thread thread;
-	//private DBAccessor sender;
+	private DBAccessor sender;
 	private boolean signal = false;
 	
 	/**
@@ -129,7 +128,7 @@ public class MessageSender implements Runnable{
 			 * Send the message 
 			 */
 			if(mes != null) {
-				SMSUtility.sendMessage(c, mes);
+				SMSUtility.sendMessage(MessageService.dba, c, mes);
 			}
 		}		
 	}

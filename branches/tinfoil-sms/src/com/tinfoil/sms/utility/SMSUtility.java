@@ -1,6 +1,6 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
- * 
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
+	 * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -32,14 +32,16 @@ import android.telephony.SmsManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.tinfoil.sms.crypto.Encryption;
+import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.dataStructures.Message;
 import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.dataStructures.TrustedContact;
 import com.tinfoil.sms.dataStructures.User;
 import com.tinfoil.sms.dataStructures.Number;
 import com.tinfoil.sms.database.DBAccessor;
-import com.tinfoil.sms.crypto.Encryption;
 import com.tinfoil.sms.messageQueue.MessageBroadcastReciever;
+import com.tinfoil.sms.settings.EditNumber;
 import com.tinfoil.sms.sms.ConversationView;
 
 /**
@@ -107,33 +109,6 @@ public abstract class SMSUtility {
 
         return number;
     }
-    
-    /**TODO remove
-     * Sends the given message to the phone with the given number
-     * 
-     * @param number The number of the phone that the message is sent to
-     * @param message The message, encrypted that will be sent to the
-     *            contact
-     */
-    /*public static void sendSMS(final Context c, final String number, final String message)
-    {
-        final String SENT = "SMS_SENT";
-
-        final Intent intent = new Intent(SENT);
-        intent.putExtra(NUMBER, number);
-        intent.putExtra(MESSAGE, message); 
-        final PendingIntent sentPI = PendingIntent.getBroadcast(c, 0,
-                intent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-        c.registerReceiver(MS, new IntentFilter(SENT));
-
-        //SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(number, null, message, sentPI, null);
-        /*if(ServiceChecker.signal){
-        	sms.sendTextMessage(number, null, message, sentPI, null);   
-        }/
-        c.unregisterReceiver(MS);
-    }*/
 
     /**
      * Sends the given message to the phone with the given number
@@ -144,15 +119,6 @@ public abstract class SMSUtility {
     public static void sendSMS(final Context c, Entry message)
     {
         final String SENT = "SMS_SENT";
-
-        /*Intent intent = new Intent(SENT);
-        intent.putExtra(NUMBER, message.getNumber());
-        intent.putExtra(MESSAGE, message.getMessage());
-        intent.putExtra(ID, message.getId());
-        PendingIntent sentPI = PendingIntent.getBroadcast(c, 0,
-                intent, PendingIntent.FLAG_CANCEL_CURRENT);*/
-
-        //Toast.makeText(c, message.getMessage(), Toast.LENGTH_SHORT).show();
 
         c.registerReceiver(MS, new IntentFilter(SENT));
 
@@ -170,14 +136,8 @@ public abstract class SMSUtility {
                     intent, PendingIntent.FLAG_CANCEL_CURRENT));
         }
         
-        //SmsManager sms = SmsManager.getDefault();
-        
         sms.sendMultipartTextMessage(message.getNumber(), null, messageList, sentPIList, null);
         
-        //sms.sendTextMessage(message.getNumber(), null, message.getMessage(), sentPI, null);
-        /*if(ServiceChecker.signal){
-        	sms.sendTextMessage(number, null, message, sentPI, null);
-        }*/
         c.unregisterReceiver(MS);
     }
 
@@ -231,28 +191,23 @@ public abstract class SMSUtility {
      * 
      * @return boolean whether the message sent or not
      */
-    public static boolean sendMessage(final Context context, Entry message) {
+    public static boolean sendMessage(DBAccessor dba, final Context context, Entry message) {
     	   	
         try
         {
-            if (MessageService.dba.isTrustedContact(message.getNumber()) &&
+            if (dba.isTrustedContact(message.getNumber()) &&
                     ConversationView.sharedPrefs.getBoolean("enable", true) &&
                     !message.isExchange())
             {
             	Encryption CrpytoEngine = new Encryption();
             	
-            	Number number = MessageService.dba.getNumber(format(message.getNumber()));
+            	Number number = dba.getNumber(format(message.getNumber()));
             	
             	Log.v("Before Encryption", message.getMessage());
                 //Create the an encrypted message
             	final String encrypted = CrpytoEngine.encrypt(number, message.getMessage());
             	
             	Log.v("After Encrypted", encrypted);
-                /*
-                final String encrypted = Encryption.aes_encrypt(new String(
-                		dba.getNumber(format(message.getNumber()))
-                        .getPublicKey()), message.getMessage());
-				*/
 
                 sendSMS(context, new Entry(message.getNumber(), encrypted,
                 		message.getId(), message.getExchange()));
@@ -262,28 +217,25 @@ public abstract class SMSUtility {
                 if (ConversationView.sharedPrefs.getBoolean("showEncrypt", true))
                 {
                     sendToSelf(context, message.getNumber(), encrypted, ConversationView.SENT);
-                    MessageService.dba.addNewMessage(new Message
-                            (encrypted, true, true), message.getNumber(), false);
+                    dba.addNewMessage(new Message (encrypted, true, Message.SENT_ENCRYPTED),
+                    		message.getNumber(), false);
                 }
 
                 sendToSelf(context, message.getNumber(), message.getMessage(), ConversationView.SENT);
 
-                //TODO change to update the time the message was sent.
-                //dba.addNewMessage(new Message(message.getMessage(), true, true), message.getNumber(), false);
+                //dba.addNewMessage(new Message(message.getMessage(), true, Message.SENT_ENCRYPTED), message.getNumber(), false);
 
                 Toast.makeText(context, "Encrypted Message sent", Toast.LENGTH_SHORT).show();
             }
             else
             {
-            	//Thread.sleep(4000);
                 //Sending a plain text message
                 sendSMS(context, message);
                 sendToSelf(context, message.getNumber(), message.getMessage(), ConversationView.SENT);
 
-                //TODO change to update the time the message was sent.
-                /*if(MessageService.dba.inDatabase(message.getNumber()))
+                /*if(!message.isExchange())
                 {
-                	MessageService.dba.addNewMessage(new Message(message.getMessage(), true, true), message.getNumber(), true);
+                	dba.addNewMessage(new Message(message.getMessage(), true, Message.SENT_DEFAULT), message.getNumber(), true);	
                 }*/
 
                 Toast.makeText(context, "Message sent", Toast.LENGTH_SHORT).show();
@@ -373,6 +325,21 @@ public abstract class SMSUtility {
 			}
 		}
 		return null;		
+	}
+	
+	/**
+	 * Checks if the given shared secret is valid
+	 * @param secret The shared secret
+	 * @return Whether the secret is valid or not
+	 */
+	public static boolean checksharedSecret(String secret)
+	{
+		if (secret != null && secret.length() >= EditNumber.SHARED_INFO_MIN &&
+				secret.length() <= EditNumber.SHARED_INFO_MAX)
+		{
+			return true;
+		}
+		return false;
 	}
 	
 }

@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.tinfoil.sms.R;
 import com.tinfoil.sms.crypto.KeyExchange;
@@ -51,14 +52,14 @@ import com.tinfoil.sms.utility.SMSUtility;
 /**
  * An activity used to edit a single number from a given contact. 
  * 
- * This activity returns a AddContact.RESULT_CODE if changes have
- * been made and the list needs to be update, else returns default
- * result code.
+ * This activity returns a AddContact.RESULT_CODE if changes have been made and
+ * the list needs to be update, else returns default result code.
+ * 
  * The Extras are included are:
  * EditNumber.UPDATE, whether the number has been updated or not
  * EditNumber.NUMBER, the number that has been edited
- * AddContact.POSITION, the position of the given number in the
- * contact's numbers array list, -1 if it is a new number
+ * AddContact.POSITION, the position of the given number in the contact's
+ * numbers array list, -1 if it is a new number
  * EditNumber.ADD, whether the number is to update or deleted
  */
 public class EditNumber extends Activity{
@@ -74,9 +75,11 @@ public class EditNumber extends Activity{
 	private EditText bookInverse;
 	private EditText pubKey;
 	private Number number;
-	//private TrustedContact tc;
 	private String originalNumber;
 	private static int position;
+	
+	public static final int SHARED_INFO_MIN = 6;
+	public static final int SHARED_INFO_MAX = 128;
 	
 	private ArrayList<RadioButton> keyExchangeSetting;
 	
@@ -84,9 +87,7 @@ public class EditNumber extends Activity{
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.setContentView(R.layout.edit_number);
-        
-        //this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        
+
         keyExchangeSetting = new ArrayList<RadioButton>();
         
         keyExchangeSetting.add((RadioButton)this.findViewById(R.id.auto_exchange));
@@ -152,11 +153,7 @@ public class EditNumber extends Activity{
         {
         	/*
         	 * Initialize the values to the default values
-        	 */
-	        sharedInfo1.setText(DBAccessor.DEFAULT_S1);
-	        
-	        sharedInfo2.setText(DBAccessor.DEFAULT_S2);
-	        
+        	 */	        
 	        bookPath.setText(DBAccessor.DEFAULT_BOOK_PATH);
 	        
 	        bookInverse.setText(DBAccessor.DEFAULT_BOOK_INVERSE_PATH);
@@ -165,6 +162,9 @@ public class EditNumber extends Activity{
         if(trusted)
         {
         	TextView pubKeyTitle = (TextView)findViewById(R.id.contact_pub_key_text);
+        	
+        	sharedInfo1.setEnabled(false);
+        	sharedInfo2.setEnabled(false);
         	pubKeyTitle.setVisibility(TextView.INVISIBLE);
         	pubKey.setVisibility(EditText.INVISIBLE);
         	
@@ -188,118 +188,130 @@ public class EditNumber extends Activity{
      */
 	public void saveNumberInfo(View view)
 	{
-		/* Is there a valid number */
-		if(phoneNumber.getText().toString() != null &&
-				phoneNumber.getText().toString().length() > 0)
+		String s1 = sharedInfo1.getText().toString();
+		String s2 = sharedInfo2.getText().toString();
+		if (((s1 == null || s1.length() == 0) && (s2 == null || s2.length() == 0)) ||
+				(SMSUtility.checksharedSecret(s1) && SMSUtility.checksharedSecret(s2)))
 		{
-			//Number tempNumber;
-			TrustedContact tc = null;
-			
-			if(number == null)
+			/* Is there a valid number */
+			if(phoneNumber.getText().toString() != null &&
+					phoneNumber.getText().toString().length() > 0)
 			{
-				/* Number is a new number */						
-				if(originalNumber != null)
-				{
-					/* 
-					 * The contact is not new and has another number.
-					 * Get the contact from the database
-					 */
-					
-					//number = MessageService.dba.getNumber(originalNumber);
-				}
-				number = new Number(phoneNumber.getText().toString());
-			}
-			else
-			{
-				/*
-				 * Editing the current number. Get the Number row
-				 * for the previous number.
-				 */
+				//Number tempNumber;
+				TrustedContact tc = null;
 				
-				number.setNumber(phoneNumber.getText().toString());
-			}
-			
-			/*
-			 * Set the updated information
-			 */
-			number.setSharedInfo1(sharedInfo1.getText().toString());
-			number.setSharedInfo2(sharedInfo2.getText().toString());
-			number.setBookPath(bookPath.getText().toString());
-			number.setBookInversePath(bookInverse.getText().toString());
-			
-			if(pubKey.getVisibility() == EditText.VISIBLE)
-			{
-				String key = pubKey.getText().toString().trim();
-				if(key != "" && key.length() > 0)
+				if(number == null)
 				{
-					number.setPublicKey(key.getBytes());
-				}
-			}
-			
-			int index = 0;
-			if(keyExchangeSetting.get(Number.AUTO).isChecked())
-			{
-				index = Number.AUTO;
-			}
-			else if(keyExchangeSetting.get(Number.MANUAL).isChecked())
-			{
-				index = Number.MANUAL;
-			}
-			else
-			{
-				index = Number.IGNORE;
-			}
-			number.setKeyExchangeFlag(index);
-			
-			/*
-			 * Update/Add the number to the database
-			 */
-			if(originalNumber != null)
-			{
-				if(position == AddContact.NEW_NUMBER_CODE)
-				{
-					tc = MessageService.dba.getRow(originalNumber);
-					tc.addNumber(number);
-					MessageService.dba.updateRow(tc, originalNumber);
+					/* Number is a new number */
+					//TODO clean up
+					if(originalNumber != null)
+					{
+						/* 
+						 * The contact is not new and has another number.
+						 * Get the contact from the database
+						 */
+						
+						//number = MessageService.dba.getNumber(originalNumber);
+					}
+					number = new Number(phoneNumber.getText().toString());
 				}
 				else
 				{
-					MessageService.dba.updateNumberRow(number, originalNumber, 0);
+					/*
+					 * Editing the current number. Get the Number row
+					 * for the previous number.
+					 */
+					
+					number.setNumber(phoneNumber.getText().toString());
 				}
+				
+				/*
+				 * Set the updated information
+				 */
+				number.setSharedInfo1(sharedInfo1.getText().toString());
+				number.setSharedInfo2(sharedInfo2.getText().toString());
+				number.setBookPath(bookPath.getText().toString());
+				number.setBookInversePath(bookInverse.getText().toString());
+				
+				if(pubKey.getVisibility() == EditText.VISIBLE)
+				{
+					String key = pubKey.getText().toString().trim();
+					if(key != "" && key.length() > 0)
+					{
+						number.setPublicKey(key.getBytes());
+					}
+				}
+				
+				int index = 0;
+				if(keyExchangeSetting.get(Number.AUTO).isChecked())
+				{
+					index = Number.AUTO;
+				}
+				else if(keyExchangeSetting.get(Number.MANUAL).isChecked())
+				{
+					index = Number.MANUAL;
+				}
+				else
+				{
+					index = Number.IGNORE;
+				}
+				number.setKeyExchangeFlag(index);
+				
+				/*
+				 * Update/Add the number to the database
+				 */
+				if(originalNumber != null)
+				{
+					if(position == AddContact.NEW_NUMBER_CODE)
+					{
+						tc = MessageService.dba.getRow(originalNumber);
+						tc.addNumber(number);
+						MessageService.dba.updateRow(tc, originalNumber);
+					}
+					else
+					{
+						MessageService.dba.updateNumberRow(number, originalNumber, 0);
+					}
+				}
+				else
+				{
+					tc = new TrustedContact();
+					tc.addNumber(number);
+					MessageService.dba.addRow(tc);
+				}
+				
+				
+				Intent data = new Intent();
+				
+				/*
+				 * Return intent with given parameters 
+				 */
+				if(originalNumber != null && number.getNumber().equalsIgnoreCase(originalNumber))
+				{					
+					data.putExtra(EditNumber.UPDATE, false);					
+				}
+				else
+				{
+					data.putExtra(EditNumber.UPDATE, true);
+				}
+				
+				data.putExtra(EditNumber.NUMBER, number.getNumber());
+				data.putExtra(AddContact.POSITION, position);
+				data.putExtra(EditNumber.ADD, true);
+				
+				/*
+				 * Set result code to identify that whether the list in
+				 * ManageContactsActivity.
+				 */
+				EditNumber.this.setResult(AddContact.REQUEST_CODE, data);
+	
+				EditNumber.this.finish();
 			}
-			else
-			{
-				tc = new TrustedContact();
-				tc.addNumber(number);
-				MessageService.dba.addRow(tc);
-			}
-			
-			
-			Intent data = new Intent();
-			
-			/*
-			 * Return intent with given parameters 
-			 */
-			if(originalNumber != null && number.getNumber().equalsIgnoreCase(originalNumber))
-			{					
-				data.putExtra(EditNumber.UPDATE, false);					
-			}
-			else
-			{
-				data.putExtra(EditNumber.UPDATE, true);
-			}
-			
-			data.putExtra(EditNumber.NUMBER, number.getNumber());
-			data.putExtra(AddContact.POSITION, position);
-			data.putExtra(EditNumber.ADD, true);
-			
-			/*
-			 * Set result code to identify that whether the list in
-			 * ManageContactsActivity.
-			 */
-			EditNumber.this.setResult(AddContact.REQUEST_CODE, data);
-
-			EditNumber.this.finish();
+		}
+		else
+		{
+			//TODO create a better notification for invalid shared secrets (since they key board blocks them)
+			Toast.makeText(this, "Shared secrets must be longer then " + SHARED_INFO_MIN, Toast.LENGTH_LONG).show();
 		}
 	}
 

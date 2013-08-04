@@ -52,7 +52,7 @@
 			<intent
 				android:action="android.intent.action.VIEW"
 				android:targetPackage="com.tinfoil.sms"
-				android:targetClass="com.tinfoil.sms.settings.ManageContactsActivity" />
+				android:targetClass="com.tinfoil.sms.settings.TabSelection" />
     	</PreferenceScreen>
 	</PreferenceCategory>
 	
@@ -62,11 +62,11 @@
 	    <PreferenceScreen 
 	        android:title="Add Book"
 	        android:key="add_book" 
-	        android:summary="Add a Book Source to the reference list">
+	        android:summary="Add a Book Source to the reference list" android:enabled="false">
         </PreferenceScreen>
 		<PreferenceScreen 
 		    android:title="Manage Books" 
-		    android:key="manage_books">
+		    android:key="manage_books" android:enabled="false">
 		    
 		</PreferenceScreen>
 	</PreferenceCategory>

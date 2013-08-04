@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,10 +33,14 @@ import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.dataStructures.Message;
 import com.tinfoil.sms.dataStructures.Number;
 import com.tinfoil.sms.database.DBAccessor;
+import com.tinfoil.sms.settings.ManageContactsActivity;
 import com.tinfoil.sms.sms.ConversationView;
+import com.tinfoil.sms.sms.KeyExchangeManager;
 
 public class MessageReceiver extends BroadcastReceiver {
 	public static boolean myActivityStarted = false;
+	public static boolean keyExchangeManual = false;
+	public static boolean keyExchange = false;
 	public static final String VIBRATOR_LENTH = "500";
 	
     @Override
@@ -54,6 +58,7 @@ public class MessageReceiver extends BroadcastReceiver {
 			
 			if (pdus != null)
 			{
+				keyExchangeManual = false;
 				SmsMessage[] messages = new SmsMessage[pdus.length];
 				StringBuilder mes = new StringBuilder();
 				for (int i = 0; i < pdus.length; i++) {
@@ -97,7 +102,6 @@ public class MessageReceiver extends BroadcastReceiver {
 						 * Checks if the user has enabled the vibration option
 						 */
 						if (ConversationView.sharedPrefs.getBoolean("vibrate", true))
-								//&& Prephase3Activity.sharedPrefs.getBoolean("notification_bar", true))
 						{
 							Vibrator vibrator;
 							vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
@@ -105,8 +109,6 @@ public class MessageReceiver extends BroadcastReceiver {
 							vibrator.vibrate(Long.valueOf(value));
 						}
 	
-						//TrustedContact tcMess = MessageService.dba.getRow(ContactRetriever.format(address));
-						
 						/*
 						 * Checks if the user is a trusted contact and if tinfoil-sms encryption is
 						 * enabled.
@@ -114,8 +116,9 @@ public class MessageReceiver extends BroadcastReceiver {
 						if (MessageService.dba.isTrustedContact((address)) && 
 								ConversationView.sharedPrefs.getBoolean("enable", true)) {
 							
+							Message encryMessage = null; 
 							/*
-							 * Since contact is trusted assume it is NOT a key exchange and that the message IS encrpyted.
+							 * Since contact is trusted assume it is NOT a key exchange and that the message IS encrypted.
 							 * If the message fails to decrypt. A warning of possible Man-In-The-Middle attack is given. 
 							 */
 							try {
@@ -130,17 +133,8 @@ public class MessageReceiver extends BroadcastReceiver {
 		
 								//Updates the last message received
 								Message newMessage = null;
-								
+
 								Log.v("Before Decryption", messages[0].getMessageBody());
-								/*
-								 * Checks if the user has set encrypted messages to be shown in
-								 * messageView
-								 */
-								if (ConversationView.sharedPrefs.getBoolean("showEncrypt", true))
-								{
-									newMessage = new Message(messages[0].getMessageBody(), true, false);
-									MessageService.dba.addNewMessage(newMessage, address, true);
-								}
 								
 								Encryption CryptoEngine = new Encryption();
 								
@@ -156,17 +150,28 @@ public class MessageReceiver extends BroadcastReceiver {
 										(SMSUtility.format(address)).getPublicKey()), messages[0].getMessageBody());
 								 */
 								
-								SMSUtility.sendToSelf(context, address,	
-										secretMessage , ConversationView.INBOX);
+								/*
+								 * Checks if the user has set encrypted messages to be shown in
+								 * messageView
+								 */
+								if (ConversationView.sharedPrefs.getBoolean("showEncrypt", true))
+								{
+									encryMessage = new Message(messages[0].getMessageBody(), true, Message.RECEIVED_ENCRYPTED);
+									MessageService.dba.addNewMessage(encryMessage, address, true);
+								}
+								
+								SMSUtility.sendToSelf(context, address,	secretMessage , ConversationView.INBOX);
 								
 								/*
 								 * Store the message in the database
 								 */
-								newMessage = new Message(secretMessage, true, false);
+								newMessage = new Message(secretMessage, true, Message.RECEIVED_ENCRYPTED);
 								MessageService.dba.addNewMessage(newMessage, address, true);
 							} 
 							catch (Exception e) 
 							{
+								encryMessage = new Message(messages[0].getMessageBody(), true, Message.RECEIVED_ENCRYPT_FAIL);
+								MessageService.dba.addNewMessage(encryMessage, address, true);
 								Toast.makeText(context, "FAILED TO DECRYPT", Toast.LENGTH_LONG).show();
 								Toast.makeText(context, "Possible Man In The Middle Attack", Toast.LENGTH_LONG).show();
 								e.printStackTrace();
@@ -183,7 +188,6 @@ public class MessageReceiver extends BroadcastReceiver {
 							 * Assume it is check for key exchange message
 							 * Only once it fails is the message considered plain text.
 							 */
-							//TODO change the notification for a key exchange
 							Number number = MessageService.dba.getNumber(SMSUtility.format(address));
 							
 							if(number.getKeyExchangeFlag() != Number.IGNORE &&
@@ -191,11 +195,15 @@ public class MessageReceiver extends BroadcastReceiver {
 							{
 								///Number number = MessageService.dba.getNumber(SMSUtility.format(address));
 								//if(ConversationView.sharedPrefs.getBoolean("auto_key_exchange", true))
-								if(number.getKeyExchangeFlag() == Number.AUTO)
+								if((number.getKeyExchangeFlag() == Number.AUTO ||
+										(number.getKeyExchangeFlag() == Number.MANUAL && number.isInitiator())) &&
+										SMSUtility.checksharedSecret(number.getSharedInfo1()) &&
+										SMSUtility.checksharedSecret(number.getSharedInfo2()))
 								{
 									//Might be good to condense this into a method.
 									if(KeyExchange.verify(number, message))
 									{
+										keyExchange = true;
 										Toast.makeText(context, "Exchange Key Message Received", Toast.LENGTH_SHORT).show();
 										Log.v("Key Exchange", "Exchange Key Message Received");
 										
@@ -213,10 +221,17 @@ public class MessageReceiver extends BroadcastReceiver {
 											MessageService.dba.addMessageToQueue(number.getNumber(),
 													KeyExchange.sign(number), true);
 										}
+										
+										ManageContactsActivity.updateList();									
 									}
 								}
 								else
 								{
+									keyExchangeManual = true;
+									Toast.makeText(context, "Exchange Key Message Received",
+											Toast.LENGTH_SHORT).show();
+									
+									Log.v("Key Exchange", "Manual");
 									String result = MessageService.dba.addKeyExchangeMessage(
 											new Entry(address, message));
 									
@@ -224,6 +239,8 @@ public class MessageReceiver extends BroadcastReceiver {
 									{
 										Toast.makeText(context, result, Toast.LENGTH_LONG).show();
 									}
+									
+									KeyExchangeManager.updateList();
 								}
 							}
 							else
@@ -234,11 +251,9 @@ public class MessageReceiver extends BroadcastReceiver {
 								SMSUtility.sendToSelf(context, address,
 										message, ConversationView.INBOX);
 								
-								
-								Message newMessage = new Message(message, true, false);
+								Message newMessage = new Message(message, true, Message.RECEIVED_DEFAULT);
 								MessageService.dba.addNewMessage(newMessage, address, true);
-							}
-							
+							}							
 						}
 						
 						/*
@@ -246,21 +261,33 @@ public class MessageReceiver extends BroadcastReceiver {
 						 */
 						ConversationView.updateList(context, ConversationView.messageViewActive);
 						
-						/*
-						 * Set the values needed for the notification
-						 */
-						MessageService.contentTitle = SMSUtility.format(address);
-						if (secretMessage != null)
+						//Check if there should be a key exchange notification
+						if(!keyExchange)
 						{
-							MessageService.contentText = secretMessage;
+							if(!keyExchangeManual)
+							{
+								/*
+								 * Set the values needed for the notification
+								 */
+								MessageService.contentTitle = SMSUtility.format(address);
+								if (secretMessage != null)
+								{
+									MessageService.contentText = secretMessage;
+								}
+								else
+								{
+									MessageService.contentText = messages[0].getMessageBody();
+								}
+							}
+							else
+							{
+								MessageService.contentTitle = null;
+								MessageService.contentText = null;
+							}
+							Intent serviceIntent = new Intent(context, MessageService.class);
+							//ServiceConnection conn = new ServiceConnection() {};
+							context.startService(serviceIntent);
 						}
-						else
-						{
-							MessageService.contentText = messages[0].getMessageBody();
-						}
-						Intent serviceIntent = new Intent(context, MessageService.class);
-						//ServiceConnection conn = new ServiceConnection() {};
-						context.startService(serviceIntent);
 						
 						// Prevent other applications from seeing the message received
 						this.abortBroadcast();

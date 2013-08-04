@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -44,7 +43,9 @@ import com.tinfoil.sms.R;
 import com.tinfoil.sms.adapter.MessageAdapter;
 import com.tinfoil.sms.adapter.MessageBoxWatcher;
 import com.tinfoil.sms.crypto.ExchangeKey;
+import com.tinfoil.sms.dataStructures.Entry;
 import com.tinfoil.sms.dataStructures.Message;
+import com.tinfoil.sms.dataStructures.Number;
 import com.tinfoil.sms.dataStructures.TrustedContact;
 import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.utility.MessageService;
@@ -56,10 +57,9 @@ import com.tinfoil.sms.utility.SMSUtility;
  * messages belong to. If a message is sent or received the list of messages
  * will be updated and Prephase3Activity's messages will be updated as well.
  */
-public class MessageView extends Activity implements Runnable{
+public class MessageView extends Activity {
     private EditText messageBox;
     private static ListView list2;
-    private static List<String[]> msgList2;
     private static MessageAdapter messages;
     private static MessageBoxWatcher messageEvent;
     private static final String[] options = new String[] { "Delete message", "Copy message", "Forward message" };
@@ -69,11 +69,16 @@ public class MessageView extends Activity implements Runnable{
     private AlertDialog popup_alert;
     private ProgressDialog dialog;
     private static ExchangeKey keyThread = new ExchangeKey();
-    private DBAccessor loader;
-    private boolean update = false;
+    
+    public static MessageLoader runThread;
+
     public static final int LOAD = 0;
     public static final int UPDATE = 1;
     
+    public static final String CONTACT_NAME = "contact_name";
+    public static final String MESSAGE_LIST = "message_list";
+    public static final String UNREAD_COUNT = "unread_count";
+    public static final String IS_TRUSTED = "is_trusted"; 
 
     /** Called when the activity is first created. */
     @Override
@@ -115,8 +120,7 @@ public class MessageView extends Activity implements Runnable{
 					}        	
         });
         
-        Thread loadThread = new Thread(this);
-        loadThread.start();
+        runThread = new MessageLoader(this, false, handler);
 
         //Set an action for when a user clicks on a message        
         list2.setOnItemLongClickListener(new OnItemLongClickListener() {
@@ -155,7 +159,7 @@ public class MessageView extends Activity implements Runnable{
                                     if (MessageView.this.tc == null)
                                     {
                                     	//Do in thread.
-                                        MessageView.this.tc = MessageService.dba.getAllRows();
+                                        MessageView.this.tc = MessageService.dba.getAllRows(DBAccessor.ALL);
                                     }
 
                                     if (MessageView.this.tc != null)
@@ -182,8 +186,7 @@ public class MessageView extends Activity implements Runnable{
 
                                                 public void onClick(final DialogInterface dialog, final int which) {
                                                 	
-                                                	// TODO user SMSUtility.parseAutoComplete(...)
-                                                    final String[] info = phoneBox.getText().toString().split(", ");
+                                                	final String[] info = SMSUtility.parseAutoComplete(phoneBox.getText().toString());
 
                                                     boolean invalid = false;
                                                     //TODO identify whether a forwarded message has a special format
@@ -250,7 +253,7 @@ public class MessageView extends Activity implements Runnable{
             MessageService.dba.updateMessageCount(ConversationView.selectedNumber, 0);
             if (MessageService.mNotificationManager != null)
             {
-                MessageService.mNotificationManager.cancel(MessageService.INDEX);
+                MessageService.mNotificationManager.cancel(MessageService.SINGLE);
             }
         }       
     }
@@ -265,10 +268,6 @@ public class MessageView extends Activity implements Runnable{
     	
     	if(text != null && text.length() > 0)
         {
-    		Message newMessage = new Message(text, true, true);
-    		Log.v("Message Time", ""+newMessage.getDate());
-    		Log.v("Message Time", ""+Message.millisToDate(newMessage.getDate()));
-    		MessageService.dba.addNewMessage(newMessage, ConversationView.selectedNumber, true);
             sendMessage(ConversationView.selectedNumber, text);
         }
     }
@@ -288,19 +287,33 @@ public class MessageView extends Activity implements Runnable{
             messageEvent.resetCount();
             MessageService.dba.addMessageToQueue(number, text, false);
 
+            if(MessageService.dba.isTrustedContact(number))
+            {
+            	MessageService.dba.addNewMessage(new Message(text, true, 
+                		Message.SENT_ENCRYPTED), number, false);
+            }
+            else
+            {
+            	MessageService.dba.addNewMessage(new Message(text, true, 
+                		Message.SENT_DEFAULT), number, false);
+            }
+            
             //Encrypt the text message before sending it	
             //SMSUtility.sendMessage(number, text, this.getBaseContext());
             
             //Start update thread
-            update = true;
-            Thread thread = new Thread(this);
-            thread.start();            
+            runThread.setUpdate(true);
+            runThread.setStart(false);
         }
     }
 
     @Override
     protected void onResume()
     {
+    	if(MessageService.mNotificationManager != null)
+    	{
+    		MessageService.mNotificationManager.cancel(MessageService.SINGLE);
+    	}
         super.onResume();
     }
 
@@ -310,23 +323,16 @@ public class MessageView extends Activity implements Runnable{
     public static void updateList()
     {
         if (ConversationView.selectedNumber != null)
-        {
-        	//TODO do this in a thread.
-            msgList2 = MessageService.dba.getSMSList(ConversationView.selectedNumber);
-            messages.clear();
-            messages.addData(msgList2);
-
-            MessageService.dba.updateMessageCount(ConversationView.selectedNumber, 0);
+        {        	
+        	runThread.setUpdate(true);
+        	runThread.setStart(false);
         }
     }
 
     @Override
     public boolean onPrepareOptionsMenu(final Menu menu) {
         super.onPrepareOptionsMenu(menu);
-        
-        //menu.findItem(R.id.exchange).setChecked(MessageService.dba
-        	//	.isTrustedContact(ConversationView.selectedNumber));
-        
+
         if(MessageService.dba.isTrustedContact(ConversationView.selectedNumber))
         {
         	menu.findItem(R.id.exchange).setTitle("Untrust Contact")
@@ -334,8 +340,16 @@ public class MessageView extends Activity implements Runnable{
         }
         else
         {
-        	menu.findItem(R.id.exchange).setTitle("Exchange Keys")
-        		.setTitleCondensed("Exchange");
+        	if(MessageService.dba.getKeyExchangeMessage(ConversationView.selectedNumber) != null)
+        	{
+        		menu.findItem(R.id.exchange).setTitle("Resolve Key Exchange")
+    			.setTitleCondensed("Resolve");
+        	}
+        	else
+        	{
+        		menu.findItem(R.id.exchange).setTitle("Exchange Keys")
+        			.setTitleCondensed("Exchange");
+        	}
         }
         return true;
     }
@@ -360,11 +374,60 @@ public class MessageView extends Activity implements Runnable{
                 if (!MessageService.dba.isTrustedContact(SMSUtility.format
                         (ConversationView.selectedNumber)))
                 {
-                    keyThread.startThread(SMSUtility.format(ConversationView.selectedNumber), null);
+                	final Entry entry = MessageService.dba.getKeyExchangeMessage(ConversationView.selectedNumber);
+                	
+                	if (entry != null)
+                	{
+                		final TrustedContact tc = MessageService.dba.getRow(ConversationView.selectedNumber);
+                		final Number number = tc.getNumber(ConversationView.selectedNumber);
+                		
+                		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                		
+                		builder.setMessage("Would you like to exchange keys with " + tc.getName() + ", " + number.getNumber() + "?")
+	         		    .setCancelable(true)
+	         		    .setPositiveButton("Okay", new DialogInterface.OnClickListener() {
+         		    	   @Override
+         		    	   public void onClick(DialogInterface dialog, int id) {
+         		                //Save the shared secrets
+         		    		if(SMSUtility.checksharedSecret(number.getSharedInfo1()) &&
+          							SMSUtility.checksharedSecret(number.getSharedInfo2()))
+          					{
+                      			KeyExchangeManager.respondMessage(number, entry);
+          					}
+                      		else
+                      		{
+                      			KeyExchangeManager.setAndSend(MessageView.this, number, tc.getName(), entry);
+                      		}
+	         		    }})
+	         		    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+         		    	   @Override
+         		    	   public void onClick(DialogInterface arg0, int arg1) {
+         		    		   // Cancel the key exchange
+         		    		   Toast.makeText(MessageView.this, "Key exchange cancelled", Toast.LENGTH_LONG).show();
+         		    		   
+         		    		   // Delete key exchange
+         		    		   MessageService.dba.deleteKeyExchangeMessage(number.getNumber());
+         		    		   
+         		    		  if(MessageService.dba.getKeyExchangeMessageCount() == 0)
+         		    		  {
+      							  MessageService.mNotificationManager.cancel(MessageService.KEY);
+         		    		  }
+         		    	   }
+	         		    });
+                		
+		         		AlertDialog alert = builder.create();
+		         		ExchangeKey.keyDialog.dismiss();
+		         		//alert.setView();
+		         		alert.show();
+                	}
+                	else 
+                	{
+                		keyThread.startThread(this, SMSUtility.format(ConversationView.selectedNumber), null);
+                	}
                 }
                 else
                 {
-                    keyThread.startThread(null, SMSUtility.format(ConversationView.selectedNumber));
+                	keyThread.startThread(this, null, SMSUtility.format(ConversationView.selectedNumber));
                 }
 
                 return true;
@@ -379,76 +442,43 @@ public class MessageView extends Activity implements Runnable{
             default:
                 return super.onOptionsItemSelected(item);
         }
-
     }
-
-
-	public void run() {
-		
-		if(!update)
-		{
-			loader = new DBAccessor(this);
-	        final boolean isTrusted = loader.isTrustedContact(ConversationView.selectedNumber);
-	
-	        messageEvent = new MessageBoxWatcher(this, R.id.word_count, isTrusted);
-	        
-			msgList2 = loader.getSMSList(ConversationView.selectedNumber);
-			final int unreadCount = loader.getUnreadMessageCount(ConversationView.selectedNumber);
-	
-	        //Toast.makeText(this, String.valueOf(unreadCount), Toast.LENGTH_SHORT).show();
-	        messages = new MessageAdapter(this, R.layout.listview_full_item_row, msgList2,
-	                unreadCount);
-	     
-	        //Retrieve the name of the contact from the database
-	        contact_name = loader.getRow(ConversationView.selectedNumber).getName();
-	
-	        //sendSMS = (Button) this.findViewById(R.id.send);
-	        this.messageBox = (EditText) this.findViewById(R.id.message);
-	
-	        /*final InputFilter[] FilterArray = new InputFilter[1];
-	
-	        if (isTrusted)
-	        {
-	        	
-	            FilterArray[0] = new InputFilter.LengthFilter(SMSUtility.ENCRYPTED_MESSAGE_LENGTH);
-	        }
-	        else
-	        {
-	            FilterArray[0] = new InputFilter.LengthFilter(SMSUtility.MESSAGE_LENGTH);
-	        }
-	
-	        this.messageBox.setFilters(FilterArray);*/
-	
-	        this.messageBox.addTextChangedListener(messageEvent);
-	        
-	        this.handler.sendEmptyMessage(LOAD);
-		}
-		else
-		{
-			msgList2 = MessageService.dba.getSMSList(ConversationView.selectedNumber);
-			MessageService.dba.updateMessageCount(ConversationView.selectedNumber, 0);
-			update = false;
-			this.handler.sendEmptyMessage(UPDATE);
-		}
+    
+    @Override
+    protected void onDestroy()
+    {
+    	ConversationView.messageViewActive = false;
+	    runThread.setRunner(false);
+	    super.onDestroy();
 	}
-	
+
 	/**
 	 * The handler class for cleaning up after the loading thread and the update
 	 * thread.
 	 */
 	private final Handler handler = new Handler() {
-        @Override
+        @SuppressWarnings("unchecked")
+		@Override
         public void handleMessage(final android.os.Message msg)
         {
+        	Bundle b = msg.getData();
+        	
         	switch (msg.what){
         	case LOAD:
+		        contact_name = b.getString(MessageView.CONTACT_NAME);
+		        messageEvent = new MessageBoxWatcher(MessageView.this, R.id.word_count, b.getBoolean(MessageView.IS_TRUSTED));
+		        messageBox = (EditText) MessageView.this.findViewById(R.id.message);
+	        	messageBox.addTextChangedListener(messageEvent);
+	        	messages = new MessageAdapter(MessageView.this, R.layout.listview_full_item_row, 
+	        			(List<String[]>) b.get(MessageView.MESSAGE_LIST), b.getInt(MessageView.UNREAD_COUNT, 0));
 	        	list2.setAdapter(messages);
 	            list2.setItemsCanFocus(false);
 	        	MessageView.this.dialog.dismiss();
 	        	break;
         	case UPDATE:
         		messages.clear();
-        		messages.addData(msgList2);
+        		messages.addData((List<String[]>) b.get(MessageView.MESSAGE_LIST));
+        		messages.notifyDataSetChanged();
         		break;
         	}
         }

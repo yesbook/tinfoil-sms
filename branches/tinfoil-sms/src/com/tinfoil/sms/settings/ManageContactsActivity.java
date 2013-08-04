@@ -1,5 +1,5 @@
 /** 
- * Copyright (C) 2011 Tinfoilhat
+ * Copyright (C) 2013 Jonathan Gillett, Joseph Heron
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,14 +27,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckedTextView;
 import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
@@ -49,40 +47,34 @@ import com.tinfoil.sms.dataStructures.TrustedContact;
 import com.tinfoil.sms.utility.MessageService;
 
 /**
- * TODO update when received key exchange.
- * TODO fix layout
- * Currently the onClick action is very confusing for people new to the app.
- * Even though items are selected depending on the state of the contact the
- * onClick action will be different. If a contact's number is trusted (has the
- * Tinfoil-sms icon next to their number) then the contact clicking the button
- * will delete the contact's key and set the to untrusted. Where as if the
- * contact's number is not trusted (there is no tinfoil-sms icon next to the
- * number) then clicking the button will initiate a key exchange with that
- * contact.
  * ManageContactActivity is an activity that allows the user to exchange keys,
  * edit and delete contacts. A list of contacts will be shown with an check box,
  * if check then the user is either exchanging or have exchanged keys with the
- * contact. To edit a contact's information hold down for a long press, which
- * will start AddContact activity with addContact == false and editTc != null. A
- * contact can be added by click 'Add Contact' in the menu this will start the
- * AddContact activity with addContact == true and editTc == null. Contacts can
+ * contact. To edit a contact's information hold down for a long press. A
+ * contact can be added by click 'Add Contact' in the menu. Contacts can
  * be deleted from tinfoil-sms's database by clicking 'Delete Contact' in the
  * menu which will start RemoveContactActivity.
  */
-public class ManageContactsActivity extends Activity implements Runnable {
+public class ManageContactsActivity extends Activity {
 
 	public static final int UPDATE = 1;
 	
+	public static final int POP = 1;
+	public static final int EMPTY = 2;	
+	
     private ExpandableListView extendableList;
     private ListView listView;
-    private ArrayList<TrustedContact> tc;
+    public static ArrayList<TrustedContact> tc;
     private ProgressDialog loadingDialog;
     private ArrayAdapter<String> arrayAp;
-    private boolean[] trusted;
 
-    private ArrayList<ContactParent> contacts;
-    private ArrayList<ContactChild> contactNumbers;
+    public static ArrayList<ContactParent> contacts;
+    public static ArrayList<ContactChild> contactNumbers;
     private static ManageContactAdapter adapter;
+    
+    public boolean exchange = true;
+    
+    private static ManageContactsLoader runThread;
 
     private static ExchangeKey keyThread = new ExchangeKey();
 
@@ -90,8 +82,15 @@ public class ManageContactsActivity extends Activity implements Runnable {
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        
+        exchange = this.getIntent().getExtras().getBoolean(TabSelection.EXCHANGE, true);
+       
         this.setContentView(R.layout.contact);
+        
+        if (!exchange)
+        {
+        	((Button)this.findViewById(R.id.exchange_keys)).setText("Untrust");
+        }
         this.extendableList = (ExpandableListView) this.findViewById(R.id.contacts_list);
         this.listView = (ListView) this.findViewById(R.id.empty_list);
 
@@ -110,8 +109,8 @@ public class ManageContactsActivity extends Activity implements Runnable {
                    
                 	
                     AddContact.addContact = false;
-                    AddContact.editTc = ManageContactsActivity.this.tc.get(
-                    		ExpandableListView.getPackedPositionGroup(id));
+                    AddContact.editTc = MessageService.dba.getRow(ManageContactsActivity.tc.get(
+                    		ExpandableListView.getPackedPositionGroup(id)).getANumber());
 
                     Intent intent = new Intent(ManageContactsActivity.this,
                     		AddContact.class);
@@ -128,24 +127,6 @@ public class ManageContactsActivity extends Activity implements Runnable {
 
                 //Child long clicked
                 return false;
-            }
-        });
-
-        /*
-         * If no contacts are in the database the user can click the menu item
-         * to start adding a new contact
-         */
-        this.listView.setOnItemClickListener(new OnItemClickListener() {
-
-            public void onItemClick(final AdapterView<?> parent, final View view,
-                    final int position, final long id) {
-
-                //Go to add contact
-                AddContact.addContact = true;
-                AddContact.editTc = null;
-                ManageContactsActivity.this.startActivity(new Intent(
-                		ManageContactsActivity.this.getBaseContext(), 
-                		AddContact.class));
             }
         });
 
@@ -172,6 +153,7 @@ public class ManageContactsActivity extends Activity implements Runnable {
     }
 
     /**
+     * TODO disable when no contact is selected
      * The onClick action for when the user clicks on keyExchange
      * @param view The view that is involved
      */
@@ -183,7 +165,7 @@ public class ManageContactsActivity extends Activity implements Runnable {
         ExchangeKey.keyDialog = ProgressDialog.show(ManageContactsActivity.this,
         		"Exchanging Keys", "Exchanging. Please wait...", true, false);
 
-        keyThread.startThread(adapter.getContacts());
+        keyThread.startThread(this, adapter.getContacts());
 
         ExchangeKey.keyDialog.setOnDismissListener(new OnDismissListener() {
 
@@ -198,7 +180,7 @@ public class ManageContactsActivity extends Activity implements Runnable {
      */
     private void update()
     {
-        if (this.tc != null)
+        if (tc != null)
         {
             this.extendableList.setAdapter(adapter);
             this.listView.setVisibility(ListView.INVISIBLE);
@@ -211,26 +193,11 @@ public class ManageContactsActivity extends Activity implements Runnable {
             this.listView.setVisibility(ListView.VISIBLE);
         }
 
-        if (this.tc != null)
+        if (tc != null)
         {
             this.extendableList.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
         }
     }
-    
-    
-    /*TODO remove
-    protected void onActivityResult(int requestCode, int resultCode, Intent data)
-    {
-    	super.onActivityResult(requestCode, resultCode, data);
-    	
-    	if(requestCode == resultCode)
-    	{
-    		if(resultCode == ManageContactsActivity.UPDATE)
-    		{
-    			this.startThread();
-    		}
-    	}
-    }*/
     
     protected void onResume()
     {
@@ -246,89 +213,26 @@ public class ManageContactsActivity extends Activity implements Runnable {
         //TODO Override dialog to make so if BACK is pressed it exits the activity if it hasn't finished loading
         this.loadingDialog = ProgressDialog.show(this, "Loading Contacts",
                 "Loading. Please wait...", true, false);
-        final Thread thread = new Thread(this);
-        thread.start();
+        runThread = new ManageContactsLoader();
+        
+        runThread.startThread(handler, exchange);
         super.onResume();
     }
 
     @Override
-    public boolean onCreateOptionsMenu(final Menu menu) {
-
-        final MenuInflater inflater = this.getMenuInflater();
-        inflater.inflate(R.menu.manage_contacts_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.add: {
-                AddContact.addContact = true;
-                AddContact.editTc = null;
-                this.startActivity(new Intent(this, AddContact.class));
-
-                return true;
-            }
-            case R.id.all:
-                if (this.tc != null)
-                {
-                	adapter.setAllSelected(true);
-                	update();
-                }
-                return true;
-            case R.id.remove:
-                if (this.tc != null)
-                {
-                	adapter.setAllSelected(false);
-                	update();
-                }
-                return true;
-            case R.id.delete: {
-                if (this.tc != null)
-                {
-                    this.startActivity(new Intent(this.getApplicationContext(), RemoveContactsActivity.class));
-                }
-                return true;
-            }
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
-
-    public void run() {
-        this.tc = MessageService.dba.getAllRows();
-
-        if (this.tc != null)
+    protected void onDestroy()
+    {	  
+    	runThread.setRunner(false);
+    	super.onDestroy();
+	}
+    
+    public static void updateList()
+    {
+        if(runThread != null)
         {
-            this.contacts = new ArrayList<ContactParent>();
-            int size = 0;
-
-            for (int i = 0; i < this.tc.size(); i++)
-            {
-                size = this.tc.get(i).getNumber().size();
-
-                this.contactNumbers = new ArrayList<ContactChild>();
-
-                this.trusted = MessageService.dba.isNumberTrusted(this.tc.get(i).getNumber());
-
-                for (int j = 0; j < size; j++)
-                {
-                    //TODO change to use primary key from trusted contact table
-                    this.contactNumbers.add(new ContactChild(this.tc.get(i).getNumber(j),
-                            this.trusted[j], false));
-                }
-                this.contacts.add(new ContactParent(this.tc.get(i).getName(), this.contactNumbers));
-            }
-
-            adapter = new ManageContactAdapter(this, this.contacts);
+        	Log.v("Run Thread", "Running");
+        	runThread.setRefresh(true);
         }
-        else
-        {
-            this.arrayAp = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
-                    new String[] { "Add a Contact" });
-        }
-
-        this.handler.sendEmptyMessage(0);
     }
 
     /**
@@ -338,8 +242,30 @@ public class ManageContactsActivity extends Activity implements Runnable {
         @Override
         public void handleMessage(final Message msg)
         {
+        	/* Handle UI update once the thread has finished querying the data */ 
+        	switch (msg.what){
+        		case POP:
+        			adapter = new ManageContactAdapter(ManageContactsActivity.this, ManageContactsActivity.contacts);
+     	            adapter.notifyDataSetChanged();
+		            break;
+        		case EMPTY:
+        			String emptyListValue = msg.getData().getString(ManageContactsLoader.EMPTYLIST);
+        			if (emptyListValue == null)
+        			{
+        				emptyListValue = "Empty list";
+        			}
+        			arrayAp = new ArrayAdapter<String>(ManageContactsActivity.this, android.R.layout.simple_list_item_1,
+    	                    new String[] { emptyListValue });
+    	        	
+    	        	arrayAp.notifyDataSetChanged();
+        			break;
+        	}
+        	
             ManageContactsActivity.this.update();
-            ManageContactsActivity.this.loadingDialog.dismiss();
+            if(ManageContactsActivity.this.loadingDialog.isShowing())
+            {
+            	ManageContactsActivity.this.loadingDialog.dismiss();
+            }
         }
     };
 
