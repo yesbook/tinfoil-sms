@@ -67,6 +67,8 @@ public class EditNumber extends Activity{
 	public static final String UPDATE = "update";
 	public static final String NUMBER = "number";
 	public static final String ADD = "add";
+	public static final String DELETE = "delete";
+	public static final String IS_DELETED = "is_deleted";
 	
 	private EditText phoneNumber;
 	private EditText sharedInfo1;
@@ -203,16 +205,6 @@ public class EditNumber extends Activity{
 				if(number == null)
 				{
 					/* Number is a new number */
-					//TODO clean up
-					if(originalNumber != null)
-					{
-						/* 
-						 * The contact is not new and has another number.
-						 * Get the contact from the database
-						 */
-						
-						//number = MessageService.dba.getNumber(originalNumber);
-					}
 					number = new Number(phoneNumber.getText().toString());
 				}
 				else
@@ -367,6 +359,31 @@ public class EditNumber extends Activity{
             	}
             	
             	return true;
+            	
+            case R.id.delete:
+            	
+            	Intent data = new Intent();
+            	
+            	if (MessageService.dba.getRow(originalNumber).getNumbers().size() == 1)
+            	{
+            		MessageService.dba.removeRow(originalNumber);
+            		data.putExtra(EditNumber.IS_DELETED, true);
+            	}
+            	else
+            	{
+            		MessageService.dba.deleteNumber(originalNumber);
+            		
+            	}
+            	
+            	data.putExtra(EditNumber.UPDATE, true);
+				//data.putExtra(EditNumber.NUMBER, null);
+				data.putExtra(AddContact.POSITION, position);
+				data.putExtra(EditNumber.ADD, true);
+            	data.putExtra(EditNumber.DELETE, originalNumber);
+				EditNumber.this.setResult(AddContact.REQUEST_CODE, data);
+				
+				EditNumber.this.finish();
+            	return true;            
             default:
                 return super.onOptionsItemSelected(item);
         }

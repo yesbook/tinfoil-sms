@@ -43,11 +43,13 @@ import com.tinfoil.sms.utility.MessageService;
  * Add or Edit contacts of the user.
  */
 public class AddContact extends Activity {
-	
+
 	public static final String EDIT_NUMBER = "edit_number";
 	public static final int REQUEST_CODE = 1;
 	public static final String POSITION = "position";
 	public static final int NEW_NUMBER_CODE = -1;
+	public static final int UPDATED_NUMBER = 2;
+	public static final int DELETED_NUMBER = 3;
 	
     public static TrustedContact editTc;
     public static boolean addContact;
@@ -72,7 +74,7 @@ public class AddContact extends Activity {
         /*
          * Check if a user is editing a contact or creating a new contact.
          */
-        if (!addContact || editTc != null)
+        if (!addContact && editTc != null)
         {
             this.contactEdit = editTc;
             this.originalNumber = this.contactEdit.getANumber();
@@ -200,9 +202,21 @@ public class AddContact extends Activity {
                 MessageService.dba.updateContactInfo(AddContact.this.contactEdit, AddContact.this.originalNumber);
             }
             
-            AddContact.this.contactEdit = null;
-            editTc = null;
-            AddContact.this.finish();
+            if (AddContact.this.originalNumber != null && AddContact.this.contactEdit.getNumber(AddContact.this.originalNumber) == null)
+            {
+            	AddContact.this.contactEdit = null;
+                editTc = null;
+                AddContact.this.setResult(AddContact.DELETED_NUMBER);
+                AddContact.this.finish();
+            }
+            else
+            {
+            	AddContact.this.contactEdit = null;
+                editTc = null;
+                AddContact.this.setResult(AddContact.UPDATED_NUMBER);
+                AddContact.this.finish();
+            }
+            
         }
         else
         {
@@ -244,6 +258,7 @@ public class AddContact extends Activity {
         else
         {
             this.contactEdit = new TrustedContact("");
+            
             this.listView.setAdapter(new ContactAdapter(this, R.layout.add_number, this.contactEdit));
         }
 
@@ -257,7 +272,7 @@ public class AddContact extends Activity {
     	super.onActivityResult(requestCode, resultCode, data);
     	
         /*
-         * TODO Comment
+         * Get the result data
          */
     	boolean update = false;
     	String number = null;
@@ -271,19 +286,62 @@ public class AddContact extends Activity {
     		position = data.getIntExtra(AddContact.POSITION, 0);
     		addNumber = data.getBooleanExtra(EditNumber.ADD, true);
     		
+    		/*
+    		 * Add the new number to the list of numbers
+    		 */
 	    	if(update && number != null)
 	    	{    	
 	    		if(addNumber)
 	    		{
 	    			if(position == AddContact.NEW_NUMBER_CODE)
 	    			{
-	    				update(number);
+	    				if(contactEdit.getNumbers().size() <= 1)
+	    				{
+	    					if(contactEdit.getName() == "")
+	    					{
+	    						this.contactName.setText(number);
+	    						contactEdit.setName(number);
+	    					}
+	    					else if (contactName.getText().toString() != "")
+	    					{
+	    						contactEdit.setName(contactName.getText().toString());
+	    					}
+	    					contactEdit.addNumber(number);
+	    					MessageService.dba.updateContactInfo(contactEdit, number);
+	    					update(null);
+	    				}
+	    				else
+	    				{
+	    					update(number);
+	    				}
 	    			}
 	    			else
 	    			{
 	    				contactEdit.setNumber(position, number);
 	    				update(null);
 	    			}
+	    		}
+	    	}
+	    	else if (update)
+	    	{
+	    		/*
+	    		 * Remove the number or the contact from the list
+	    		 */
+	    		boolean isDeleted = data.getBooleanExtra(EditNumber.IS_DELETED, false);
+	    		
+	    		String temp = data.getStringExtra(EditNumber.DELETE);    		
+	    		
+	    		if (!isDeleted)
+	    		{
+		    		contactEdit.deleteNumber(temp);
+		    		AddContact.this.setResult(AddContact.DELETED_NUMBER);
+		    		update(null);
+	    		}
+	    		else
+	    		{
+	    			MessageService.dba.removeRow(temp);
+	    			AddContact.this.setResult(AddContact.DELETED_NUMBER);
+	    			finish();
 	    		}
 	    	}
     	}

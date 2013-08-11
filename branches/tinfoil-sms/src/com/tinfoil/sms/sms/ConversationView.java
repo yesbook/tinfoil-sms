@@ -54,10 +54,6 @@ import com.tinfoil.sms.utility.MessageReceiver;
 import com.tinfoil.sms.utility.MessageService;
 
 /**
- * <ul>
- * <li>TODO add the proper version number and name to the manifest</li>
- * <li>TODO change wrap_content to '0dp'</li>
- * </ul>
  * This activity shows all of the conversations the user has with contacts. The
  * list Will be updated every time a message is received. Upon clicking any of
  * the conversations MessageView activity will be started with selectedNumber =
@@ -83,7 +79,7 @@ public class ConversationView extends Activity {
     public static boolean messageViewActive = false;
     
     public static MessageSender messageSender = new MessageSender();
-    
+
     private ProgressDialog dialog;
     private static boolean update = false;
     public static final int LOAD = 0;
@@ -206,10 +202,8 @@ public class ConversationView extends Activity {
      */
     public static void updateList(final Context context, final boolean messageViewUpdate)
     {
-
         if (MessageReceiver.myActivityStarted)
         {
-            
         	if(conversations != null)
             {
             	runThread.setUpdate(true);
@@ -253,6 +247,7 @@ public class ConversationView extends Activity {
         MessageReceiver.myActivityStarted = false;
         
         runThread.setRunner(false);
+        messageSender.setRunner(false);
         super.onDestroy();
     }
 
@@ -316,7 +311,10 @@ public class ConversationView extends Activity {
 	        		//First time load, the adapter must be constructed
 	        		conversations = new ConversationAdapter(ConversationView.this, R.layout.listview_item_row, msgList);
 	        		list.setAdapter(conversations);
-	        		ConversationView.this.dialog.dismiss();
+	        		if(ConversationView.this.dialog.isShowing())
+	        		{
+	        			ConversationView.this.dialog.dismiss();
+	        		}
 		        	break;
 	        	case UPDATE:
 	        		//The list's data has changed and needs to be updated

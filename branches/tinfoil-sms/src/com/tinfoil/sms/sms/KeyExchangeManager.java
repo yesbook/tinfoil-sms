@@ -30,6 +30,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -80,8 +81,9 @@ public class KeyExchangeManager extends Activity {
 		{
 			ListView list = (ListView)this.findViewById(R.id.key_exchange_list);
 			SparseBooleanArray sba = list.getCheckedItemPositions();
+			int i = 0;
 			
-			for (int i = 0; i < runThread.getEntries().size(); i++)
+			while(runThread.getEntries() != null && i < runThread.getEntries().size())
 			{
 				if(sba.get(i))
 				{
@@ -96,24 +98,18 @@ public class KeyExchangeManager extends Activity {
 							SMSUtility.checksharedSecret(number.getSharedInfo2()))
 					{
 						respondMessage(number, runThread.getEntries().get(i));
-						//entries.remove(entries.get(i));
-						//updateList();
 					}
 					else
 					{
 						setAndSend(this, number, tc.getName(), runThread.getEntries().get(i));
 					}
-					runThread.getEntries().remove(runThread.getEntries().get(i));
-					
-					
-				//else Item has not be touched leave it alone.
 				}
+				
+				i++;
 			}
-		}
-		updateList();
+		}		
 	}
 	
-	//TODO make sure notification goes away
 	public static void setAndSend(final Context context, final Number number, String name, final Entry entry)
 	{
 		AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -196,8 +192,16 @@ public class KeyExchangeManager extends Activity {
 		    {
 				MessageService.mNotificationManager.cancel(MessageService.KEY);
 		    }
-			//a.remove(entries.get(i).getNumber());
+			if (runThread != null && runThread.getEntries() != null)
+			{
+				runThread.getEntries().remove(entry);
+			}
 		}
+		else
+		{
+			 //TODO handle bad shared secrets 
+		}
+		updateList();
 	}
 	
 	/**
@@ -228,7 +232,6 @@ public class KeyExchangeManager extends Activity {
 	}
 	
 	/**
-	 * TODO change the view adapter to better represent the key exchange.
 	 * Update the list key exchange messages 
 	 */
 	public static void updateList()
@@ -292,10 +295,16 @@ public class KeyExchangeManager extends Activity {
 		@Override
         public void handleMessage(final android.os.Message msg)
         {
+			Button accept = (Button)KeyExchangeManager.this.findViewById(R.id.accept);
+			Button reject = (Button)KeyExchangeManager.this.findViewById(R.id.reject);
+			
         	Bundle b = msg.getData();
         	ListView list = null;
         	switch (msg.what){
         	case FULL:
+        		
+        		accept.setEnabled(true);
+        		reject.setEnabled(true);
         		list = (ListView)KeyExchangeManager.this.findViewById(R.id.key_exchange_list);
 	    		adapter = new ArrayAdapter<String>(KeyExchangeManager.this, 
 	    				android.R.layout.simple_list_item_multiple_choice, (String[]) b.get(KeyExchangeManager.COMPLETE));
@@ -305,9 +314,12 @@ public class KeyExchangeManager extends Activity {
 	    		list.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
 	    		break;
         	case EMPTY:
+        		
+        		accept.setEnabled(false);
+        		reject.setEnabled(false);
         		list = (ListView)KeyExchangeManager.this.findViewById(R.id.key_exchange_list);
 	    		adapter = new ArrayAdapter<String>(KeyExchangeManager.this, 
-	    				android.R.layout.simple_list_item_1, new String[]{"Empty List"});
+	    				android.R.layout.simple_list_item_1, new String[]{"No Pending Key Echanges"});
 	    		//a.setNotifyOnChange(true);
 	    		
 	    		list.setAdapter(adapter);

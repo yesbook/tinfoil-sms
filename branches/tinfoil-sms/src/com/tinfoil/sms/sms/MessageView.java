@@ -25,6 +25,7 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
@@ -48,6 +49,7 @@ import com.tinfoil.sms.dataStructures.Message;
 import com.tinfoil.sms.dataStructures.Number;
 import com.tinfoil.sms.dataStructures.TrustedContact;
 import com.tinfoil.sms.database.DBAccessor;
+import com.tinfoil.sms.settings.AddContact;
 import com.tinfoil.sms.utility.MessageService;
 import com.tinfoil.sms.utility.SMSUtility;
 
@@ -151,14 +153,13 @@ public class MessageView extends Activity {
                                 }
                                 else if (which == 2)
                                 {
-                                	//TODO fix so that if the message is forwarded to a contact that is not in db the number is auto added
                                     //option = Forward message
                                     phoneBox = new AutoCompleteTextView(MessageView.this.getBaseContext());
 
                                     List<String> contact = null;
                                     if (MessageView.this.tc == null)
                                     {
-                                    	//Do in thread.
+                                    	//TODO Do in thread.
                                         MessageView.this.tc = MessageService.dba.getAllRows(DBAccessor.ALL);
                                     }
 
@@ -186,44 +187,7 @@ public class MessageView extends Activity {
 
                                                 public void onClick(final DialogInterface dialog, final int which) {
                                                 	
-                                                	final String[] info = SMSUtility.parseAutoComplete(phoneBox.getText().toString());
-
-                                                    boolean invalid = false;
-                                                    //TODO identify whether a forwarded message has a special format
-                                                    if (info != null)
-                                                    {
-
-                                                        if (info.length == 2 && info[1] != null)
-                                                        {
-                                                            if (SMSUtility.isANumber(info[1]))
-                                                            {                      
-                                                            	//SMSUtility.sendMessage(getBaseContext(), info[1], messageValue[1]);
-                                                            	MessageView.this.sendMessage(info[1],messageValue[1]);
-                                                            }
-                                                            else
-                                                            {
-                                                                invalid = true;
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            final String num = phoneBox.getText().toString();
-                                                            if (SMSUtility.isANumber(num))
-                                                            {
-                                                            	MessageView.this.sendMessage(num,messageValue[1]);
-                                                            	//SMSUtility.sendMessage(getBaseContext(), num, messageValue[1]);
-                                                            }
-                                                            else
-                                                            {
-                                                                invalid = true;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    if (invalid)
-                                                    {
-                                                        Toast.makeText(MessageView.this.getBaseContext(), "Invalid number", Toast.LENGTH_SHORT).show();
-                                                    }
+                                                	forward(messageValue[1]);
                                                 }
 
                                             });
@@ -233,8 +197,7 @@ public class MessageView extends Activity {
                                     contact_alert.show();
                                 }
                             }
-                        })
-                        .setCancelable(true);
+                        }).setCancelable(true);
                 MessageView.this.popup_alert = popup_builder.create();
                 MessageView.this.popup_alert.show();
             			
@@ -242,8 +205,6 @@ public class MessageView extends Activity {
 			}
         });
 
-        
-      
         /*
          * Reset the number of unread messages for the contact to 0
          */
@@ -256,6 +217,57 @@ public class MessageView extends Activity {
                 MessageService.mNotificationManager.cancel(MessageService.SINGLE);
             }
         }       
+    }
+    
+    private void forward(String message)
+    {
+    	final String[] info = SMSUtility.parseAutoComplete(phoneBox.getText().toString());
+    	String num = null;
+        boolean invalid = false;
+
+        if (info != null)
+        {
+        	if (info.length == 2 && info[1] != null)
+            {
+        		num = info[1];
+                if (!SMSUtility.isANumber(info[1]))
+                {              
+                	invalid = true;
+                }
+            }
+            else
+            {
+                num  = phoneBox.getText().toString();
+                if (!SMSUtility.isANumber(num))
+                {
+                	 invalid = true;
+                }
+            }
+        }
+
+        if (invalid)
+        {
+            Toast.makeText(MessageView.this.getBaseContext(), "Invalid number", Toast.LENGTH_SHORT).show();
+        }
+        else
+        {
+        	if(!MessageService.dba.inDatabase(num))
+        	{
+        		MessageService.dba.addRow(new TrustedContact(new Number(num)));
+        	}
+        	
+        	if(MessageService.dba.isTrustedContact(num))
+        	{
+        		MessageService.dba.addNewMessage(new Message(message, true, Message.SENT_ENCRYPTED), num, true);
+        	}
+        	else
+        	{
+        		MessageService.dba.addNewMessage(new Message(message, true, Message.SENT_DEFAULT), num, true);
+        	}
+
+            //Add the message to the queue to send it
+            MessageService.dba.addMessageToQueue(num, message, false);      
+        }
     }
 
     /**
@@ -388,7 +400,7 @@ public class MessageView extends Activity {
 	         		    .setPositiveButton("Okay", new DialogInterface.OnClickListener() {
          		    	   @Override
          		    	   public void onClick(DialogInterface dialog, int id) {
-         		                //Save the shared secrets
+         		            //Save the shared secrets
          		    		if(SMSUtility.checksharedSecret(number.getSharedInfo1()) &&
           							SMSUtility.checksharedSecret(number.getSharedInfo2()))
           					{
@@ -417,7 +429,6 @@ public class MessageView extends Activity {
                 		
 		         		AlertDialog alert = builder.create();
 		         		ExchangeKey.keyDialog.dismiss();
-		         		//alert.setView();
 		         		alert.show();
                 	}
                 	else 
@@ -439,11 +450,35 @@ public class MessageView extends Activity {
                 }
                 return true;
 
+            case R.id.edit:
+            	
+            	AddContact.addContact = false;
+                AddContact.editTc = MessageService.dba.getRow(ConversationView.selectedNumber);
+
+                Intent intent = new Intent(MessageView.this, AddContact.class);
+                
+                MessageView.this.startActivityForResult(intent, UPDATE);
+            	
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
     
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+    	super.onActivityResult(requestCode, resultCode, data);
+    	
+    	if(resultCode == AddContact.UPDATED_NUMBER)
+    	{	
+	    	updateList();
+    	}
+    	/* Handle case where contact's number is deleted */
+    	else if (resultCode == AddContact.DELETED_NUMBER)
+    	{
+    		finish();
+    	}
+    }
+
     @Override
     protected void onDestroy()
     {
@@ -473,7 +508,10 @@ public class MessageView extends Activity {
 	        			(List<String[]>) b.get(MessageView.MESSAGE_LIST), b.getInt(MessageView.UNREAD_COUNT, 0));
 	        	list2.setAdapter(messages);
 	            list2.setItemsCanFocus(false);
-	        	MessageView.this.dialog.dismiss();
+	            if(MessageView.this.dialog.isShowing())
+	            {
+	            	MessageView.this.dialog.dismiss();
+	            }
 	        	break;
         	case UPDATE:
         		messages.clear();
