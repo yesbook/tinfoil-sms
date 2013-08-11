@@ -54,22 +54,15 @@ public class ConversationLoader extends Loader {
 
     @Override
 	public void execution() {
-		MessageService.dba = new DBAccessor(context);
-		DBAccessor loader = new DBAccessor(context);
 
-	        SMSUtility.user = MessageService.dba.getUserRow();
+    	SMSUtility.user = MessageService.dba.getUserRow();
 	         
-	        if(SMSUtility.user == null)
-	        {
-	        	//Toast.makeText(context, "New key pair is generating...", Toast.LENGTH_SHORT).show();
-	        	Log.v("First Launch", "keys are generating...");
-	        	//Create the keyGenerator
-		        KeyGenerator keyGen = new KeyGenerator();
-		        
-		        SMSUtility.user = new User(keyGen.generatePubKey(), keyGen.generatePriKey());
-		        //Set the user's 
-		        MessageService.dba.setUser(SMSUtility.user);
-	        }
+        if(SMSUtility.user == null)
+        {
+        	//Toast.makeText(context, "New key pair is generating...", Toast.LENGTH_SHORT).show();
+        	Log.v("First Launch", "keys are generating...");
+        	//Create the keyGenerator
+	        KeyGenerator keyGen = new KeyGenerator();
 	        
 	        SMSUtility.user = new User(keyGen.generatePubKey(), keyGen.generatePriKey());
 	        //Set the user's 

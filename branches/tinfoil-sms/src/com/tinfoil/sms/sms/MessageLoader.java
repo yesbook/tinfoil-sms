@@ -25,15 +25,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
-import com.tinfoil.sms.database.DBAccessor;
 import com.tinfoil.sms.loader.Loader;
+import com.tinfoil.sms.utility.MessageService;
 
 public class MessageLoader extends Loader{
-	
-    private boolean loopRunner = true;
-    private boolean start = true;
-    //private Context context;
-	private Thread thread;
+
     private boolean update;
     private Handler handler;
     

@@ -235,7 +235,8 @@ public class ExchangeKey implements Runnable {
         	    		    			   number.setSharedInfo1(s1);
         	    		    			   number.setSharedInfo2(s2);
         	    		    			   MessageService.dba.updateNumberRow(number, number.getNumber(), number.getId());
-        	    		    			   number.setInitiator(true);					
+        	    		    			   number.setInitiator(true);
+        	    		    			   TrustedContact t = MessageService.dba.getRow(number.getNumber());
        	                                
         	    			               MessageService.dba.updateInitiator(number);
         	    			                
