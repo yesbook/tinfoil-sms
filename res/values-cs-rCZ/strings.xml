@@ -19,7 +19,7 @@
     <string name="eula_title">Tinfoil-SMS Licenční Ujednání</string>
     <string name="eula_message">"PROSÍM VĚNUJTE ČAS PREČTENÍ TOHOTO LICENČNÍHO UJEDNÁNÍ KONCOVÉHO UŽIVATELE (EULA - End User License Agreement) PŘED INSTALACÍ NEBO POUŽÍVÁNÍM TOHOTO SOFTWARU.\n
 Tato distribuce 	obsahuje kryptografický software. Země, ve které se nyní nacházíte muže mít omezení zakazující import, držení, používání a/nebo šírení kryptografického softwaru do jiné země. PŘED používáním tohoto softwaru si prosím zkontrolujte, zda zákony, vyhlášky a nařízení vaší země neomezují import, držení, používání a/nebo šírení kryptografického softwaru. Pro více informací se podívejte na http://www.wassenaar.org \n
-KLIKNUTÍM NA "PŘIJMOUT" POTVRZUJETE, ŽE ROZUMÍTE ZÁKONUM PRO IMPORT A EXPORT KRYPTOGRAFICKÝCH SOFTWARU VE VAŠÍ ZEMI A JSTE PLNĚ ZODPOVĚDNÍ ZA ZAJIŠTENÍ TOHO, ŽE MUŽETE LEGÁLNĚ IMPORTOVAT A EXPORTOVAT TENTO SOFTWARE. KLIKNUTÍM NA "PŘIJMOUT" ROVNĚŽ SOUHLASÍTE S TÍM, ŽE AUTOŘI TÉTO APLIKACE NEJSOU ZODPOVĚDNI ZA ŽÁDNÉ PRÁVNÍ NÁSLEDKY, KTERÉ BY MOHLY VZNIKNOUT POUŽÍVÁNÍM TOHOTO SOFTWARU. ROVNĚŽ POTVRZUJETE, ŽE AUTOŘI NENESOU ŽÁDNOU ODPOVĚDNOST ZA ŠKODY, VČETNÌ NÁHODNÝCH, ZVLÁŠTNÍCH NEBO NÁSLEDNÝCH ŠKOD VYPLÝVAJÍCÍCH Z POUŽÍVÁNÍ NEBO NEMOŽNOSTI POUŽÍVÁNÍ TOHOTO SOFTWARU.\n
+KLIKNUTÍM NA "PŘIJMOUT" POTVRZUJETE, ŽE ROZUMÍTE ZÁKONUM PRO IMPORT A EXPORT KRYPTOGRAFICKÝCH SOFTWARU VE VAŠÍ ZEMI A JSTE PLNĚ ZODPOVĚDNÍ ZA ZAJIŠTENÍ TOHO, ŽE MUŽETE LEGÁLNĚ IMPORTOVAT A EXPORTOVAT TENTO SOFTWARE. KLIKNUTÍM NA "PŘIJMOUT" ROVNĚŽ SOUHLASÍTE S TÍM, ŽE AUTOŘI TÉTO APLIKACE NEJSOU ZODPOVĚDNI ZA ŽÁDNÉ PRÁVNÍ NÁSLEDKY, KTERÉ BY MOHLY VZNIKNOUT POUŽÍVÁNÍM TOHOTO SOFTWARU. ROVNĚŽ POTVRZUJETE, ŽE AUTOŘI NENESOU ŽÁDNOU ODPOVĚDNOST ZA ŠKODY, VČETNĚ NÁHODNÝCH, ZVLÁŠTNÍCH NEBO NÁSLEDNÝCH ŠKOD VYPLÝVAJÍCÍCH Z POUŽÍVÁNÍ NEBO NEMOŽNOSTI POUŽÍVÁNÍ TOHOTO SOFTWARU.\n
 KONEČNĚ, TENTO SOFTWARE JE VYVÍJEN JAKO OPEN SOURCE A JE LICENCOVÁN PON LICENCÍ GNU V3 (GPLv3). KLIKNUTÍM NA "PŘIJMOUT" TAKÉ MUSÍTE SOUHLASIT S PODMÍNKAMI LICENCE GNU V3 (GPLv3), PROSÍM PODÍVEJTE SE NA http://www.gnu.org/licenses/gpl.html PRO ÚPLNÉ ZNĚNÍ LICENCE. NAVÍC, VZHLEDEM K TOMU, ŽE JE TENTO SOFTWARE OPEN SOURCE, BUĎTE ZVLÁŠTĚ OPATRNÍ PŘI IMPORTU TOHOTO SOFTWARU NEBO JEHO ZDROJOVÉHO KÓDU A PŘI JEHO DALŠÍ DISTRIBUCI DOKONCE I PŘI ODESLÁNÍ TECHNICKÉ PŘIPOMÍNKY ČI ZDROJOVÉHO KÓDU PATCHE AUTORŮM. DŮRAZNĚ DOPORUČUJEME PROSTUDOVAT ZÁKONY VAŠÍ ZEMĚ, KTERÉ BY SE TOHOTO MOHLY TÝKAT.\n
 KLIKNĚTE NA "PŘIJMOUT" POUZE POKUD ZCELA ROZUMÍTE A SOUHLASÍTE S TÍMTO LICENČNÍM UJEDNÁNÍM KONCOVÉHO UŽIVATELE."</string>
     <string name="compose_menu">Napsat zprávu</string>
@@ -27,9 +27,9 @@ KLIKNĚTE NA "PŘIJMOUT" POUZE POKUD ZCELA ROZUMÍTE A SOUHLASÍTE S TÍMTO LICE
     <string name="pending_key_exchange_menu">Nevyřízené výměny klíčů</string>
     <string name="pending_key_exchange_menu_condensed">Vyměnit klíč</string>
     <!-- TODO Translate -->
-    <string name="kitkat_dialog_title">Warning!</string>
+    <string name="kitkat_dialog_title">Varování!</string>
     <!-- TODO Translate -->
-    <string name="kitkat_dialog_message">Tinfoil-SMS currently does not support Android KitKat 4.4 and will not be able to send any text messages. Continue anyways?</string>
+    <string name="kitkat_dialog_message">Tinfoil-SMS v současné době nepodporuje Android 4.4 KitKat, pravděpodobně nebudete schopni odeslat žádné textové zprávy. Přejete si i přes to pokračovat?</string>
 
     <!-- Database Accessor strings -->
     <string name="duplicate_key_exchange">Zpráva obsahující jiný klíč byla odeslána</string>
@@ -103,8 +103,8 @@ KLIKNĚTE NA "PŘIJMOUT" POUZE POKUD ZCELA ROZUMÍTE A SOUHLASÍTE S TÍMTO LICE
     <string name="empty_loader_value">Žádné kontakty</string>
     <string name="empty_loader_trusted_value">Žádné duvěryhodné kontakty</string>
     <!-- TODO Translate -->
-    <string name="loading_dialog_header">Load Contacts</string>
-    <string name="loading_dialog_body">Loading Contacts&#8230;</string>
+    <string name="loading_dialog_header">Načíst kontakty</string>
+    <string name="loading_dialog_body">Načítám kontakty&#8230;</string>
 
     <!-- EditNumber strings -->
     <string name="shared_secret_1">Ověřovací věta</string>
@@ -256,9 +256,9 @@ KLIKNĚTE NA "PŘIJMOUT" POUZE POKUD ZCELA ROZUMÍTE A SOUHLASÍTE S TÍMTO LICE
     <string name="message_order_title">Pořadí zpráv</string>
     <string name="message_order_summary">Zobrazit poslední zprávu nahoře</string>
     <!-- TODO Translate -->
-    <string name="walkthrough_title">Enable Walkthrough</string>
+    <string name="walkthrough_title">Zapnout Průvodce</string>
     <!-- TODO Translate -->
-    <string name="walkthrough_summary">Show Walkthrough</string>
+    <string name="walkthrough_summary">Zobrazit Průvodce</string>
     
     <!-- Notification strings -->
     <string name="new_message_notification_title">Nové zprávy</string>
@@ -268,9 +268,9 @@ KLIKNĚTE NA "PŘIJMOUT" POUZE POKUD ZCELA ROZUMÍTE A SOUHLASÍTE S TÍMTO LICE
     
 	<!-- New Key Exchange strings -->
 	<!-- TODO Translate all the following strings-->
-    <string name="key_exchange_sent">Key Exchange Sent</string>
-    <string name="new_key_exchange">Key Exchange</string>
-	<string name="new_key_exchange_menu">New Key Exchange</string>
+    <string name="key_exchange_sent">Požadavek na výměnu klíčů byl odeslán</string>
+    <string name="new_key_exchange">Výměna klíčů</string>
+	<string name="new_key_exchange_menu">Nová výměna klíčů</string>
     
     <!-- Introductory Tutorial strings -->
     <!-- Intro -->
