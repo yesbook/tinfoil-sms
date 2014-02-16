@@ -55,13 +55,13 @@ RECENT CHANGES
 
 Beta Release verze 1.3.2
 
-Changes:
-    * Added German tranlations
-Fixes:
-    * Forward empty number
-    * Import invalid contact
-    * Invalid contact issue
-    * No default SMS app for Kitkat check.
-    * Fixed Compose menu strings.
+Změny:
+    * Přidána jazyková podpora němčiny
+Opravy:
+    * Přeposlat prázdné číslo
+    * Import špatného kontaktu
+    * Problémy s vadnými kontakty
+    * Nesnaží se být výchozí aplikací pro zprávy SMS na androidu 4.4 Kitkat
+    * Opraveno menu
 
-For a complete listing of all changes please see the CHANGELOG on GitHub.
+Pro seznam všech změn navštivte sekci CHANGELOG na našem GitHubu.
